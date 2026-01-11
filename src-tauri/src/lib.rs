@@ -112,6 +112,21 @@ fn save_monitors_to_file(app_handle: &tauri::AppHandle, monitors: &Vec<MonitorCo
 }
 
 // Helpers
+fn expand_env_vars(path: &str) -> String {
+    let mut expanded = path.to_string();
+    
+    // Windows style %VAR%
+    let re = regex::Regex::new(r"%([^%]+)%").unwrap();
+    for cap in re.captures_iter(path) {
+        let var_name = &cap[1];
+        if let Ok(value) = std::env::var(var_name) {
+            expanded = expanded.replace(&cap[0], &value);
+        }
+    }
+    
+    expanded
+}
+
 // This function is no longer used in the new `check_monitor_path` logic.
 // fn expand_env_vars(path: &str) -> String {
 //     let re = Regex::new(r"%([^%]+)%").unwrap();
@@ -162,20 +177,34 @@ fn save_monitors(app_handle: tauri::AppHandle, monitors: Vec<MonitorConfig>) {
 
 #[tauri::command]
 fn check_monitor_path(path: String) -> CheckResult {
+    let expanded_path = expand_env_vars(&path);
+    let path_buf = std::path::PathBuf::from(&expanded_path);
+
+    if !path_buf.exists() {
+        return CheckResult { 
+            size_bytes: 0, 
+            error: Some("Path not found".to_string()) 
+        };
+    }
+
     let mut total_size = 0;
-    for entry in WalkDir::new(&path).into_iter().filter_map(|e| e.ok()) {
+    let walker = WalkDir::new(&path_buf).into_iter();
+    
+    for entry in walker.filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             if let Ok(metadata) = entry.metadata() {
                 total_size += metadata.len();
             }
         }
     }
+    
     CheckResult { size_bytes: total_size, error: None }
 }
 
 #[tauri::command]
 fn open_monitor_path(_app_handle: tauri::AppHandle, path: String) -> Result<(), String> {
-    tauri_plugin_opener::open_path(path, None::<&str>).map_err(|e| e.to_string())
+    let expanded_path = expand_env_vars(&path);
+    tauri_plugin_opener::open_path(expanded_path, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -132,6 +132,7 @@ export function MonitorTable({
                     </Table.Thead>
                     <Table.Tbody>
                         {data.map((m) => {
+                            const isNotFound = m.error === "Path not found"; // Added for path not found error
                             const currentMB = (m.currentSizeBytes || 0) / (1024 * 1024);
                             const percentage = Math.min(100, (currentMB / m.threshold) * 100);
                             let color = 'teal';
