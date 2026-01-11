@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  AppShell,
-  Container,
-} from "@mantine/core";
+import { AppShell, Container } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import "./App.css";
 
@@ -14,6 +11,7 @@ import { StatsGrid } from "./components/StatsGrid";
 import { MonitorTable } from "./components/MonitorTable";
 import { AddMonitorModal } from "./components/AddMonitorModal";
 import { EditMonitorModal } from "./components/EditMonitorModal";
+import { SettingsModal } from "./components/SettingsModal";
 
 function App() {
   const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
@@ -26,6 +24,7 @@ function App() {
   // Modals
   const [addOpened, { open: openAdd, close: closeAdd }] = useDisclosure(false);
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
+  const [settingsOpened, { open: openSettings, close: closeSettings }] = useDisclosure(false);
 
   // Editing State
   const [editingMonitor, setEditingMonitor] = useState<MonitorStatus | null>(null);
@@ -152,15 +151,14 @@ function App() {
   };
 
   const handleRestore = async () => {
-    if (confirm("Are you sure? This will load default monitors.")) {
-      try {
-        const defaults: MonitorConfig[] = await invoke("restore_defaults");
-        const withStatus = defaults.map(m => ({ ...m, loading: true }));
-        setMonitors(withStatus);
-        setTimeout(() => scanAllInternal(withStatus), 500);
-      } catch (e) {
-        console.error(e);
-      }
+    try {
+      const defaults: MonitorConfig[] = await invoke("restore_defaults");
+      const withStatus = defaults.map(m => ({ ...m, loading: true }));
+      setMonitors(withStatus);
+      setTimeout(() => scanAllInternal(withStatus), 500);
+      closeSettings(); // Modalı kapat
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -226,7 +224,7 @@ function App() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <TitleBar />
+      <TitleBar onOpenSettings={openSettings} />
 
       {/* MODALS */}
       <AddMonitorModal
@@ -242,6 +240,13 @@ function App() {
         onSave={handleEditSave}
       />
 
+      <SettingsModal
+        opened={settingsOpened}
+        onClose={closeSettings}
+        onRestore={handleRestore}
+        onOpenConfig={handleOpenConfig}
+      />
+
       {/* Main Content Area */}
       <AppShell style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} padding="sm" withBorder={false}>
         <AppShell.Main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
@@ -251,8 +256,6 @@ function App() {
               stats={stats}
               scanning={scanning}
               onAdd={openAdd}
-              onRestore={handleRestore}
-              onOpenConfig={handleOpenConfig}
               onScanAll={scanAll}
               formatBytes={formatBytes}
             />

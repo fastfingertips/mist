@@ -85,7 +85,7 @@ export function MonitorTable({
     removeMonitor,
     onToggleNotify,
     formatBytes
-}: MonitorTableProps) {
+}: Readonly<MonitorTableProps>) {
 
     return (
         <Paper withBorder={false} radius="md" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>

@@ -13,7 +13,9 @@ use window_vibrancy::apply_blur;
 
 mod defaults;
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct MonitorConfig {
@@ -37,7 +39,11 @@ pub struct MonitorResult {
 
 // Config Path
 fn get_config_path(app_handle: &tauri::AppHandle) -> PathBuf {
-    app_handle.path().app_config_dir().unwrap().join("monitors.json")
+    app_handle
+        .path()
+        .app_config_dir()
+        .unwrap()
+        .join("monitors.json")
 }
 
 // File Operations
@@ -74,8 +80,10 @@ fn expand_env_vars(path: &str) -> String {
 
 fn calculate_size(path: &str) -> u64 {
     let path_buf = PathBuf::from(path);
-    if !path_buf.exists() { return 0; }
-    
+    if !path_buf.exists() {
+        return 0;
+    }
+
     WalkDir::new(&path_buf)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -93,7 +101,7 @@ async fn check_monitor_path(path: String) -> MonitorResult {
         let expanded = expand_env_vars(&path_clone);
         let size_bytes = calculate_size(&expanded);
         let size_gb = size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-        
+
         MonitorResult {
             path: path_clone,
             expanded_path: expanded,
@@ -101,7 +109,9 @@ async fn check_monitor_path(path: String) -> MonitorResult {
             size_gb,
             error: None,
         }
-    }).await.unwrap()
+    })
+    .await
+    .unwrap()
 }
 
 #[tauri::command]
@@ -139,44 +149,65 @@ fn open_config_folder(app_handle: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+fn export_monitors(app_handle: tauri::AppHandle, path: String) -> Result<(), String> {
+    let monitors = load_monitors_from_file(&app_handle);
+    let content = serde_json::to_string_pretty(&monitors).map_err(|e| e.to_string())?;
+    fs::write(path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn import_monitors(app_handle: tauri::AppHandle, path: String) -> Result<(), String> {
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let monitors: Vec<MonitorConfig> = serde_json::from_str(&content).map_err(|_| "Invalid config file".to_string())?;
+    save_monitors_to_file(&app_handle, &monitors);
+    Ok(())
+}
+
 // Background Worker
 fn start_background_worker(app_handle: tauri::AppHandle) {
     let app_handle = app_handle.clone();
-    thread::spawn(move || {
-        loop {
-            let monitors = load_monitors_from_file(&app_handle);
-            
-            for monitor in monitors {
-                if !monitor.enabled { continue; }
-                
-                let expanded = expand_env_vars(&monitor.path);
-                let size_bytes = calculate_size(&expanded);
-                let size_mb = size_bytes / (1024 * 1024);
-                
-                if monitor.notify && size_mb > monitor.threshold {
-                     use tauri_plugin_notification::NotificationExt;
-                     app_handle.notification()
-                        .builder()
-                        .title("Cache Alert")
-                        .body(&format!("{} exceeded limit! Current: {} MB", monitor.name, size_mb))
-                        .show()
-                        .ok();
-                }
+    thread::spawn(move || loop {
+        let monitors = load_monitors_from_file(&app_handle);
+
+        for monitor in monitors {
+            if !monitor.enabled {
+                continue;
             }
-            thread::sleep(Duration::from_secs(300));
+
+            let expanded = expand_env_vars(&monitor.path);
+            let size_bytes = calculate_size(&expanded);
+            let size_mb = size_bytes / (1024 * 1024);
+
+            if monitor.notify && size_mb > monitor.threshold {
+                use tauri_plugin_notification::NotificationExt;
+                app_handle
+                    .notification()
+                    .builder()
+                    .title("Cache Alert")
+                    .body(&format!(
+                        "{} exceeded limit! Current: {} MB",
+                        monitor.name, size_mb
+                    ))
+                    .show()
+                    .ok();
+            }
         }
+        thread::sleep(Duration::from_secs(300));
     });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
-            
+
             #[cfg(target_os = "windows")]
             apply_blur(&window, Some((18, 18, 18, 125))).ok();
 
@@ -184,12 +215,14 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            check_monitor_path, 
+            check_monitor_path,
             open_monitor_path,
             get_monitors,
             save_monitors,
             restore_defaults,
-            open_config_folder
+            open_config_folder,
+            export_monitors,
+            import_monitors
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

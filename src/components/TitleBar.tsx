@@ -1,8 +1,13 @@
+
 import { Group, Text, ActionIcon, ThemeIcon, useMantineColorScheme, Tooltip } from "@mantine/core";
-import { IconChartPie, IconMinus, IconX, IconSun, IconMoon, IconDeviceDesktop } from "@tabler/icons-react";
+import { IconChartPie, IconMinus, IconX, IconSun, IconMoon, IconDeviceDesktop, IconSettings } from "@tabler/icons-react";
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-export function TitleBar() {
+interface TitleBarProps {
+    onOpenSettings: () => void;
+}
+
+export function TitleBar({ onOpenSettings }: Readonly<TitleBarProps>) {
     const appWindow = getCurrentWindow();
     const { colorScheme, setColorScheme, clearColorScheme } = useMantineColorScheme();
 
@@ -35,6 +40,11 @@ export function TitleBar() {
                 <Text size="xs" fw={700} c="dimmed">Mist</Text>
             </Group>
             <Group gap={4} style={{ WebkitAppRegion: 'no-drag' } as any}>
+                <Tooltip label="Settings" openDelay={500}>
+                    <ActionIcon variant="subtle" color="gray" size="sm" onClick={onOpenSettings}>
+                        <IconSettings size={14} />
+                    </ActionIcon>
+                </Tooltip>
                 <Tooltip label={getThemeLabel()} openDelay={500}>
                     <ActionIcon variant="subtle" color="gray" size="sm" onClick={toggleColorScheme}>
                         {getThemeIcon()}

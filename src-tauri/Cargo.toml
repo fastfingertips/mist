@@ -30,4 +30,5 @@ chrono = "0.4.42"
 window-vibrancy = "0.7.1"
 tokio = { version = "1.49.0", features = ["full"] }
 tauri-plugin-dialog = "2.5.0"
+tauri-plugin-fs = "2"
 
