@@ -145,7 +145,7 @@ function App() {
   };
 
   const removeMonitor = (id: string) => {
-    if (!confirm("Are you sure?")) return;
+    if (!confirm("Stop tracking this folder? (No files will be deleted)")) return;
     const updated = monitors.filter(m => m.id !== id);
     setMonitors(updated);
     saveToRust(updated);

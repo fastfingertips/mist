@@ -176,8 +176,8 @@ export function MonitorTable({
                                         <Menu shadow="md" width={160} position="bottom-end">
                                             <Menu.Target><ActionIcon variant="subtle" color="gray" size="sm"><IconDots size={14} /></ActionIcon></Menu.Target>
                                             <Menu.Dropdown>
-                                                <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => startEdit(m)}>Edit</Menu.Item>
-                                                <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => removeMonitor(m.id)}>Remove</Menu.Item>
+                                                <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => startEdit(m)}>Edit Settings</Menu.Item>
+                                                <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => removeMonitor(m.id)}>Stop Tracking</Menu.Item>
                                             </Menu.Dropdown>
                                         </Menu>
                                     </Table.Td>
