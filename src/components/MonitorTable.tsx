@@ -13,7 +13,8 @@ import {
     Menu,
     ScrollArea,
     Paper,
-    CopyButton
+    CopyButton,
+    Badge
 } from "@mantine/core";
 import {
     IconCheck,
@@ -143,7 +144,7 @@ export function MonitorTable({
                             else if (currentMB > m.threshold * 0.8) { color = 'yellow'; statusIcon = <IconAlertTriangle size={12} />; }
 
                             return (
-                                <Table.Tr key={m.id}>
+                                <Table.Tr key={m.id} style={isNotFound ? { opacity: 0.5 } : undefined}>
                                     <Table.Td p="xs">
                                         <ThemeIcon color={color} variant="light" size="sm" h={20} w={20} radius="xl">{statusIcon}</ThemeIcon>
                                     </Table.Td>
@@ -169,16 +170,26 @@ export function MonitorTable({
                                         </Group>
                                     </Table.Td>
                                     <Table.Td p="xs">
-                                        <Tooltip label={`${percentage.toFixed(0)}%`} withArrow>
-                                            <Progress value={percentage} color={color} size="sm" h={6} radius="xl" animated={m.loading || currentMB > m.threshold} />
-                                        </Tooltip>
+                                        {isNotFound ? (
+                                            <Badge color="red" variant="light" size="xs">Not Found</Badge>
+                                        ) : (
+                                            <Tooltip label={`${percentage.toFixed(0)}%`} withArrow>
+                                                <Progress value={percentage} color={color} size="sm" h={6} radius="xl" animated={m.loading || currentMB > m.threshold} />
+                                            </Tooltip>
+                                        )}
                                     </Table.Td>
                                     <Table.Td align="right" p="xs">
                                         <Group gap={4} justify="flex-end" wrap="nowrap">
-                                            <Text size="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatBytes(m.currentSizeBytes)}</Text>
-                                            <Tooltip label={`Limit: ${m.threshold} MB`}>
-                                                <Text size="xs" c="dimmed" style={{ cursor: 'help' }}>*</Text>
-                                            </Tooltip>
+                                            {isNotFound ? (
+                                                <Text size="xs" c="dimmed">—</Text>
+                                            ) : (
+                                                <>
+                                                    <Text size="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatBytes(m.currentSizeBytes)}</Text>
+                                                    <Tooltip label={`Limit: ${m.threshold} MB`}>
+                                                        <Text size="xs" c="dimmed" style={{ cursor: 'help' }}>*</Text>
+                                                    </Tooltip>
+                                                </>
+                                            )}
                                         </Group>
                                     </Table.Td>
                                     <Table.Td p="xs">
