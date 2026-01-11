@@ -1,5 +1,5 @@
 import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch } from "@mantine/core";
-import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings, IconMinusVertical } from "@tabler/icons-react";
+import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "@tabler/icons-react";
 import { invoke } from '@tauri-apps/api/core';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { AppSettings } from "../types";
