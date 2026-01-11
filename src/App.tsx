@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { AppShell, Container } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import "./App.css";
@@ -151,8 +152,9 @@ function App() {
     openEdit();
   };
 
-  const removeMonitor = (id: string) => {
-    if (!confirm("Stop tracking this folder? (No files will be deleted)")) return;
+  const removeMonitor = async (id: string) => {
+    const confirmed = await confirm("Stop tracking this folder?\n\n(No files will be deleted)", { title: "Confirm Removal", kind: "warning" });
+    if (!confirmed) return;
     const updated = monitors.filter(m => m.id !== id);
     setMonitors(updated);
     saveToRust(updated);

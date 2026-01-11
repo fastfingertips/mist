@@ -1,7 +1,7 @@
 import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch } from "@mantine/core";
 import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "@tabler/icons-react";
 import { invoke } from '@tauri-apps/api/core';
-import { save, open } from '@tauri-apps/plugin-dialog';
+import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { AppSettings } from "../types";
 
 interface SettingsModalProps {
@@ -96,7 +96,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
                             <ThemeIcon variant="light" color="red" size="md"><IconReload size={16} /></ThemeIcon>
                             <Text size="sm">Factory Reset</Text>
                         </Group>
-                        <Button size="xs" color="red" variant="subtle" onClick={() => { if (confirm("Reset all monitors to default?")) onRestore(); }}>Restore</Button>
+                        <Button size="xs" color="red" variant="subtle" onClick={async () => { if (await confirm("Reset all monitors to default?", { title: "Factory Reset", kind: "warning" })) onRestore(); }}>Restore</Button>
                     </Group>
                 </Stack>
             </Stack>
