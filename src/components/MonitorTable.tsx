@@ -12,7 +12,8 @@ import {
     rem,
     Menu,
     ScrollArea,
-    Paper
+    Paper,
+    CopyButton
 } from "@mantine/core";
 import {
     IconCheck,
@@ -148,7 +149,21 @@ export function MonitorTable({
                                     <Table.Td fw={500} p="xs" style={{ fontSize: '0.85rem' }}>{m.name}</Table.Td>
                                     <Table.Td p="xs">
                                         <Group gap={6} wrap="nowrap">
-                                            <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace', maxWidth: 400 }} truncate="end">{m.path}</Text>
+                                            <CopyButton value={m.path} timeout={2000}>
+                                                {({ copied, copy }) => (
+                                                    <Tooltip label={copied ? 'Copied' : 'Click to copy'} withArrow position="right">
+                                                        <Text
+                                                            size="xs"
+                                                            c="dimmed"
+                                                            style={{ fontFamily: 'monospace', maxWidth: 400, cursor: 'pointer' }}
+                                                            truncate="end"
+                                                            onClick={copy}
+                                                        >
+                                                            {m.path}
+                                                        </Text>
+                                                    </Tooltip>
+                                                )}
+                                            </CopyButton>
                                             <ActionIcon variant="transparent" color="gray" size="xs" onClick={() => openFolder(m.path)}><IconFolderOpen size={14} /></ActionIcon>
                                         </Group>
                                     </Table.Td>
