@@ -61,8 +61,12 @@ function App() {
 
   const scanAllInternal = async (list: MonitorStatus[]) => {
     setScanning(true);
-    const promises = list.map((m, index) => scanOne(index, m));
-    await Promise.all(promises);
+    // Scan sequentially to avoid blocking and allow UI updates
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].enabled) {
+        await scanOne(i, list[i]);
+      }
+    }
     setScanning(false);
   };
 
@@ -71,8 +75,11 @@ function App() {
   const fetchMonitors = async () => {
     try {
       const loaded: MonitorConfig[] = await invoke("get_monitors");
-      setMonitors(loaded.map(m => ({ ...m, loading: true })));
-      setTimeout(() => scanAllInternal(loaded.map(m => ({ ...m, loading: true }))), 500);
+      // Show UI immediately with loading state
+      const withStatus = loaded.map(m => ({ ...m, loading: true, currentSizeBytes: 0 }));
+      setMonitors(withStatus);
+      // Start scanning after a short delay to let UI render
+      setTimeout(() => scanAllInternal(withStatus), 100);
     } catch (e) {
       console.error("Failed to load monitors", e);
     }
