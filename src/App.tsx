@@ -5,7 +5,7 @@ import { useDisclosure } from '@mantine/hooks';
 import "./App.css";
 
 // Components & Types
-import { MonitorConfig, MonitorStatus } from "./types";
+import { MonitorConfig, MonitorStatus, AppSettings } from "./types";
 import { TitleBar } from "./components/TitleBar";
 import { StatsGrid } from "./components/StatsGrid";
 import { MonitorTable } from "./components/MonitorTable";
@@ -16,6 +16,7 @@ import { SettingsModal } from "./components/SettingsModal";
 function App() {
   const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>({ minimize_to_tray: true });
 
   // Sorting State
   const [sortBy, setSortBy] = useState<string | null>(null);
@@ -30,7 +31,8 @@ function App() {
   const [editingMonitor, setEditingMonitor] = useState<MonitorStatus | null>(null);
 
 
-  // --- SCAN FUNCTIONS (Defined first so handlers can use them) ---
+  // --- SCAN FUNCTIONS ---
+  // ...
   const scanOne = async (index: number, monitor: MonitorConfig) => {
     try {
       const result: any = await invoke("check_monitor_path", { path: monitor.path });
@@ -77,7 +79,13 @@ function App() {
 
   useEffect(() => {
     fetchMonitors();
+    invoke<AppSettings>("get_settings").then(setSettings);
   }, []);
+
+  const handleUpdateSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    invoke("save_settings", { settings: newSettings });
+  };
 
   const saveToRust = async (newMonitors: MonitorConfig[]) => {
     try {
@@ -242,6 +250,8 @@ function App() {
 
       <SettingsModal
         opened={settingsOpened}
+        settings={settings}
+        onUpdateSettings={handleUpdateSettings}
         onClose={closeSettings}
         onRestore={handleRestore}
         onOpenConfig={handleOpenConfig}

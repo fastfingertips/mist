@@ -12,3 +12,7 @@ export type MonitorStatus = MonitorConfig & {
     loading: boolean;
     error?: string | null;
 };
+
+export type AppSettings = {
+    minimize_to_tray: boolean;
+};

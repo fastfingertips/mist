@@ -1,16 +1,19 @@
-import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon } from "@mantine/core";
-import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "@tabler/icons-react";
+import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch } from "@mantine/core";
+import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings, IconMinusVertical } from "@tabler/icons-react";
 import { invoke } from '@tauri-apps/api/core';
 import { save, open } from '@tauri-apps/plugin-dialog';
+import { AppSettings } from "../types";
 
 interface SettingsModalProps {
-    opened: boolean;
-    onClose: () => void;
-    onRestore: () => void;
-    onOpenConfig: () => void;
+    readonly opened: boolean;
+    readonly settings: AppSettings;
+    readonly onUpdateSettings: (s: AppSettings) => void;
+    readonly onClose: () => void;
+    readonly onRestore: () => void;
+    readonly onOpenConfig: () => void;
 }
 
-export function SettingsModal({ opened, onClose, onRestore, onOpenConfig }: Readonly<SettingsModalProps>) {
+export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onRestore, onOpenConfig }: Readonly<SettingsModalProps>) {
 
     const handleExport = async () => {
         try {
@@ -48,6 +51,23 @@ export function SettingsModal({ opened, onClose, onRestore, onOpenConfig }: Read
     return (
         <Modal opened={opened} onClose={onClose} title={<Group gap={8}><IconSettings size={20} /><Text fw={600}>Settings</Text></Group>} centered>
             <Stack gap="lg">
+                {/* Behavior Section */}
+                <Stack gap={8}>
+                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">Behavior</Text>
+                    <Group justify="space-between" align="center">
+                        <div>
+                            <Text size="sm">Minimize to tray on close</Text>
+                            <Text size="xs" c="dimmed">Keep Mist running in the background when the window is closed.</Text>
+                        </div>
+                        <Switch
+                            checked={settings.minimize_to_tray}
+                            onChange={(event) => onUpdateSettings({ ...settings, minimize_to_tray: event.currentTarget.checked })}
+                        />
+                    </Group>
+                </Stack>
+
+                <Divider />
+
                 {/* Data Management Section */}
                 <Stack gap={8}>
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">Configuration</Text>
@@ -55,7 +75,6 @@ export function SettingsModal({ opened, onClose, onRestore, onOpenConfig }: Read
                         <Button leftSection={<IconDownload size={16} />} variant="default" onClick={handleImport}>Import</Button>
                         <Button leftSection={<IconUpload size={16} />} variant="default" onClick={handleExport}>Export</Button>
                     </Group>
-                    <Text size="xs" c="dimmed">Backup or restore your monitor list and settings.</Text>
                 </Stack>
 
                 <Divider />
