@@ -28,7 +28,8 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconBell,
-    IconBellOff
+    IconBellOff,
+    IconStack
 } from "@tabler/icons-react";
 import { MonitorStatus } from "../types";
 
@@ -74,6 +75,12 @@ interface MonitorTableProps {
     removeMonitor: (id: string) => void;
     onToggleNotify: (id: string) => void;
     formatBytes: (bytes?: number) => string;
+}
+
+function formatFileCount(count: number): string {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M files`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K files`;
+    return `${count} files`;
 }
 
 export function MonitorTable({
@@ -167,6 +174,11 @@ export function MonitorTable({
                                                 )}
                                             </CopyButton>
                                             <ActionIcon variant="transparent" color="gray" size="xs" onClick={() => openFolder(m.path)}><IconFolderOpen size={14} /></ActionIcon>
+                                            {m.max_depth && m.max_depth > 0 && (
+                                                <Tooltip label={`Scan limited to ${m.max_depth} levels deep`}>
+                                                    <Badge size="xs" variant="light" color="grape" leftSection={<IconStack size={10} />}>D:{m.max_depth}</Badge>
+                                                </Tooltip>
+                                            )}
                                         </Group>
                                     </Table.Td>
                                     <Table.Td p="xs">
@@ -179,18 +191,22 @@ export function MonitorTable({
                                         )}
                                     </Table.Td>
                                     <Table.Td align="right" p="xs">
-                                        <Group gap={4} justify="flex-end" wrap="nowrap">
-                                            {isNotFound ? (
-                                                <Text size="xs" c="dimmed">—</Text>
-                                            ) : (
-                                                <>
-                                                    <Text size="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatBytes(m.currentSizeBytes)}</Text>
-                                                    <Tooltip label={`Limit: ${m.threshold} MB`}>
-                                                        <Text size="xs" c="dimmed" style={{ cursor: 'help' }}>*</Text>
+                                        {isNotFound ? (
+                                            <Text size="xs" c="dimmed">—</Text>
+                                        ) : (
+                                            <div style={{ textAlign: 'right' }}>
+                                                <Text size="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
+                                                    {formatBytes(m.currentSizeBytes)}
+                                                </Text>
+                                                {m.fileCount !== undefined && m.fileCount > 0 && (
+                                                    <Tooltip label={`${m.fileCount.toLocaleString()} files`}>
+                                                        <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums', cursor: 'help', lineHeight: 1 }}>
+                                                            {formatFileCount(m.fileCount)}
+                                                        </Text>
                                                     </Tooltip>
-                                                </>
-                                            )}
-                                        </Group>
+                                                )}
+                                            </div>
+                                        )}
                                     </Table.Td>
                                     <Table.Td p="xs">
                                         <Tooltip label={m.notify ? "Notifications ON" : "Notifications OFF"}>

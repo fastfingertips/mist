@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
-use tauri::Manager;
+use tauri::{Manager, Emitter};
 use window_vibrancy::apply_mica;
 use walkdir::WalkDir;
 use tauri_plugin_notification::NotificationExt;
@@ -21,6 +21,8 @@ pub struct MonitorConfig {
     pub threshold: f64, // MB
     pub enabled: bool,
     pub notify: bool,
+    #[serde(default)]
+    pub max_depth: Option<usize>, // None or 0 = unlimited
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -50,6 +52,16 @@ pub struct MonitorStatus {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckResult {
     pub size_bytes: u64,
+    pub file_count: u64,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ScanProgress {
+    pub monitor_id: String,
+    pub size_bytes: u64,
+    pub file_count: u64,
+    pub done: bool,
     pub error: Option<String>,
 }
 
@@ -176,29 +188,90 @@ fn save_monitors(app_handle: tauri::AppHandle, monitors: Vec<MonitorConfig>) {
 }
 
 #[tauri::command]
-fn check_monitor_path(path: String) -> CheckResult {
+fn check_monitor_path(path: String, max_depth: Option<usize>) -> CheckResult {
     let expanded_path = expand_env_vars(&path);
     let path_buf = std::path::PathBuf::from(&expanded_path);
 
     if !path_buf.exists() {
         return CheckResult { 
-            size_bytes: 0, 
+            size_bytes: 0,
+            file_count: 0,
             error: Some("Path not found".to_string()) 
         };
     }
 
     let mut total_size = 0;
-    let walker = WalkDir::new(&path_buf).into_iter();
+    let mut file_count = 0;
     
-    for entry in walker.filter_map(|e| e.ok()) {
+    // None or Some(0) = unlimited depth
+    let walker = match max_depth {
+        Some(d) if d > 0 => WalkDir::new(&path_buf).max_depth(d),
+        _ => WalkDir::new(&path_buf), // unlimited
+    };
+    
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
+            file_count += 1;
             if let Ok(metadata) = entry.metadata() {
                 total_size += metadata.len();
             }
         }
     }
     
-    CheckResult { size_bytes: total_size, error: None }
+    CheckResult { size_bytes: total_size, file_count, error: None }
+}
+
+#[tauri::command]
+fn check_monitor_path_streaming(app_handle: tauri::AppHandle, monitor_id: String, path: String, max_depth: Option<usize>) {
+    let expanded_path = expand_env_vars(&path);
+    let path_buf = std::path::PathBuf::from(&expanded_path);
+
+    if !path_buf.exists() {
+        app_handle.emit("scan-progress", ScanProgress {
+            monitor_id,
+            size_bytes: 0,
+            file_count: 0,
+            done: true,
+            error: Some("Path not found".to_string()),
+        }).ok();
+        return;
+    }
+
+    let mut total_size: u64 = 0;
+    let mut file_count: u64 = 0;
+    
+    let walker = match max_depth {
+        Some(d) if d > 0 => WalkDir::new(&path_buf).max_depth(d),
+        _ => WalkDir::new(&path_buf),
+    };
+    
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            file_count += 1;
+            if let Ok(metadata) = entry.metadata() {
+                total_size += metadata.len();
+            }
+            // Emit progress every 500 files
+            if file_count % 500 == 0 {
+                app_handle.emit("scan-progress", ScanProgress {
+                    monitor_id: monitor_id.clone(),
+                    size_bytes: total_size,
+                    file_count,
+                    done: false,
+                    error: None,
+                }).ok();
+            }
+        }
+    }
+    
+    // Final result
+    app_handle.emit("scan-progress", ScanProgress {
+        monitor_id,
+        size_bytes: total_size,
+        file_count,
+        done: true,
+        error: None,
+    }).ok();
 }
 
 #[tauri::command]
@@ -245,7 +318,7 @@ fn start_background_worker(app_handle: tauri::AppHandle) {
         let monitors = load_monitors_from_file(&app_handle);
         for monitor in monitors {
             if monitor.enabled && monitor.notify {
-                let result = check_monitor_path(monitor.path.clone());
+                let result = check_monitor_path(monitor.path.clone(), monitor.max_depth);
                 let mb = result.size_bytes as f64 / (1024.0 * 1024.0);
                 if mb > monitor.threshold {
                     app_handle.notification()
@@ -325,6 +398,7 @@ pub fn run() {
             get_monitors,
             save_monitors,
             check_monitor_path,
+            check_monitor_path_streaming,
             open_monitor_path,
             restore_defaults,
             open_config_folder,

@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { AppShell, Container } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
@@ -13,6 +14,14 @@ import { MonitorTable } from "./components/MonitorTable";
 import { AddMonitorModal } from "./components/AddMonitorModal";
 import { EditMonitorModal } from "./components/EditMonitorModal";
 import { SettingsModal } from "./components/SettingsModal";
+
+type ScanProgress = {
+  monitor_id: string;
+  size_bytes: number;
+  file_count: number;
+  done: boolean;
+  error: string | null;
+};
 
 function App() {
   const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
@@ -33,16 +42,17 @@ function App() {
 
 
   // --- SCAN FUNCTIONS ---
-  // ...
+  // Legacy scan (non-streaming)
   const scanOne = async (index: number, monitor: MonitorConfig) => {
     try {
-      const result: any = await invoke("check_monitor_path", { path: monitor.path });
+      const result: any = await invoke("check_monitor_path", { path: monitor.path, maxDepth: monitor.max_depth || null });
       setMonitors(prev => {
         const newMonitors = [...prev];
         if (newMonitors[index]) {
           newMonitors[index] = {
             ...newMonitors[index],
             currentSizeBytes: result.size_bytes,
+            fileCount: result.file_count,
             error: result.error,
             loading: false
           };
@@ -59,15 +69,23 @@ function App() {
     }
   };
 
+  // Streaming scan (real-time updates)
+  const scanOneStreaming = useCallback((monitor: MonitorConfig) => {
+    invoke("check_monitor_path_streaming", {
+      monitorId: monitor.id,
+      path: monitor.path,
+      maxDepth: monitor.max_depth || null
+    });
+  }, []);
+
   const scanAllInternal = async (list: MonitorStatus[]) => {
     setScanning(true);
-    // Scan sequentially to avoid blocking and allow UI updates
-    for (let i = 0; i < list.length; i++) {
-      if (list[i].enabled) {
-        await scanOne(i, list[i]);
+    // Start all streaming scans
+    for (const m of list) {
+      if (m.enabled) {
+        scanOneStreaming(m);
       }
     }
-    setScanning(false);
   };
 
   const scanAll = () => scanAllInternal(monitors);
@@ -76,14 +94,46 @@ function App() {
     try {
       const loaded: MonitorConfig[] = await invoke("get_monitors");
       // Show UI immediately with loading state
-      const withStatus = loaded.map(m => ({ ...m, loading: true, currentSizeBytes: 0 }));
+      const withStatus = loaded.map(m => ({ ...m, loading: true, currentSizeBytes: 0, fileCount: 0 }));
       setMonitors(withStatus);
-      // Start scanning after a short delay to let UI render
+      // Start streaming scans after a short delay to let UI render
       setTimeout(() => scanAllInternal(withStatus), 100);
     } catch (e) {
       console.error("Failed to load monitors", e);
     }
   };
+
+  // Listen to scan progress events
+  useEffect(() => {
+    const unlisten = listen<ScanProgress>("scan-progress", (event) => {
+      const progress = event.payload;
+      setMonitors(prev => {
+        return prev.map(m => {
+          if (m.id === progress.monitor_id) {
+            return {
+              ...m,
+              currentSizeBytes: progress.size_bytes,
+              fileCount: progress.file_count,
+              error: progress.error,
+              loading: !progress.done
+            };
+          }
+          return m;
+        });
+      });
+
+      // Check if all scans are done
+      if (progress.done) {
+        setMonitors(prev => {
+          const allDone = prev.every(m => !m.loading || !m.enabled);
+          if (allDone) setScanning(false);
+          return prev;
+        });
+      }
+    });
+
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
 
   useEffect(() => {
     fetchMonitors();
@@ -97,8 +147,8 @@ function App() {
 
   const saveToRust = async (newMonitors: MonitorConfig[]) => {
     try {
-      const cleanMonitors = newMonitors.map(({ id, name, path, threshold, enabled, notify }) => ({
-        id, name, path, threshold, enabled, notify
+      const cleanMonitors = newMonitors.map(({ id, name, path, threshold, enabled, notify, max_depth }) => ({
+        id, name, path, threshold, enabled, notify, max_depth
       }));
       await invoke("save_monitors", { monitors: cleanMonitors });
     } catch (e) {
@@ -123,7 +173,7 @@ function App() {
     scanOne(updated.length - 1, newMonitor);
   };
 
-  const handleEditSave = (id: string, name: string, path: string, threshold: number) => {
+  const handleEditSave = (id: string, name: string, path: string, threshold: number, maxDepth: number | undefined, enabled: boolean) => {
     const updated = monitors.map(m => {
       if (m.id === id) {
         return {
@@ -131,7 +181,9 @@ function App() {
           name,
           path,
           threshold,
-          loading: true
+          max_depth: maxDepth,
+          enabled,
+          loading: enabled // Only set loading if enabled
         };
       }
       return m;
@@ -139,8 +191,11 @@ function App() {
     setMonitors(updated);
     saveToRust(updated);
 
-    const idx = updated.findIndex(m => m.id === id);
-    if (idx !== -1) scanOne(idx, updated[idx]);
+    // Only scan if enabled
+    if (enabled) {
+      const idx = updated.findIndex(m => m.id === id);
+      if (idx !== -1) scanOneStreaming(updated[idx]);
+    }
   };
 
   const handleToggleNotify = (id: string) => {

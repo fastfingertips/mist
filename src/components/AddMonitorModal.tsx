@@ -9,7 +9,7 @@ interface AddMonitorModalProps {
     onAdd: (name: string, path: string, threshold: number) => void;
 }
 
-export function AddMonitorModal({ opened, onClose, onAdd }: AddMonitorModalProps) {
+export function AddMonitorModal({ opened, onClose, onAdd }: Readonly<AddMonitorModalProps>) {
     const [path, setPath] = useState('');
     const [name, setName] = useState('');
     const [threshold, setThreshold] = useState<string | number>(1024);

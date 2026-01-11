@@ -5,10 +5,12 @@ export type MonitorConfig = {
     threshold: number;
     enabled: boolean;
     notify: boolean;
+    max_depth?: number; // undefined or 0 = unlimited
 };
 
 export type MonitorStatus = MonitorConfig & {
     currentSizeBytes?: number;
+    fileCount?: number;
     loading: boolean;
     error?: string | null;
 };
