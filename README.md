@@ -1,16 +1,14 @@
 # Mist
 
-Mist is a modern, lightweight cache monitoring and cleanup utility built with **Tauri**, **React**, and **Rust**. Designed for Windows with a native, seamless look and feel.
+Mist is a simple, modern folder size monitor for Windows. It helps you keep track of cache directories, temp folders, or any specific path, and notifies you when they grow too large.
 
 ## Features
 
-- **Real-time Monitoring**: Tracks folder sizes for common cache locations (Temp, Spotify, Chrome, etc.).
-- **Smart Notifications**: Get notified when a folder exceeds your defined threshold.
-- **Native UI**: Uses Windows Acrylic/Blur effects for a premium desktop experience.
-- **Theme Support**: Beautiful Dark (GitHub-inspired) and Light modes.
-- **Customizable**: Add, edit, or remove any folder you want to monitor.
-- **Privacy Focused**: All configuration stays locally on your machine.
-- **Lightweight**: Built with Rust backend for minimal resource usage.
+- **Folder Monitoring**: Tracks the size of any directory you add.
+- **Threshold Alerts**: Visual and desktop notifications when a folder exceeds your set limit.
+- **Quick Access**: Open monitored folders with a single click to manage or clean them manually.
+- **Native UI**: Designed with Windows Acrylic effects and Light/Dark mode support.
+- **Lightweight**: Minimal background resource usage.
 
 ## Getting Started
 
@@ -24,7 +22,7 @@ Mist is a modern, lightweight cache monitoring and cleanup utility built with **
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/mist.git
+   git clone https://github.com/fastfingertips/mist.git
    cd mist
    # Navigate to the app directory if necessary
    cd tauri-app/tauri-cache-reminder
