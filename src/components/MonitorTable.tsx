@@ -90,8 +90,8 @@ export function MonitorTable({
 
     return (
         <Paper withBorder={false} radius="md" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-            <ScrollArea style={{ height: '100%' }} scrollbars="y" type="scroll">
-                <Table verticalSpacing={4} horizontalSpacing="xs" striped highlightOnHover stickyHeader>
+            <ScrollArea style={{ height: '100%' }} scrollbars="y" type="scroll" viewportProps={{ style: { paddingBottom: 80 } }}>
+                <Table verticalSpacing={4} horizontalSpacing="xs" striped highlightOnHover stickyHeader mb="xl">
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th w={40} p="xs"></Table.Th>

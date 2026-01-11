@@ -267,9 +267,9 @@ function App() {
       />
 
       {/* Main Content Area */}
-      <AppShell style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} padding="sm" withBorder={false}>
-        <AppShell.Main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
-          <Container size="xl" p="md" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <AppShell padding={0} withBorder={false} style={{ flex: 1, overflow: 'hidden' }}>
+        <AppShell.Main style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <Container size="xl" px="sm" py="xs" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
 
             <StatsGrid
               stats={stats}
