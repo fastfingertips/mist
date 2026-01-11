@@ -1,9 +1,11 @@
 [package]
 name = "mist"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "0.1.5"
+description = "Mist - A modern, performant folder size monitor for Windows."
+authors = ["FastFingertips"]
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/fastfingertips/mist"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,7 +13,7 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "tauri_cache_reminder_lib"
+name = "mist_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -25,10 +27,16 @@ serde_json = "1"
 walkdir = "2.5.0"
 regex = "1.12.2"
 tauri-plugin-notification = "2"
-cron = "0.15.0"
+# cron = "0.15.0"
 chrono = "0.4.42"
 window-vibrancy = "0.7.1"
 tokio = { version = "1.49.0", features = ["full"] }
 tauri-plugin-dialog = "2.5.0"
 tauri-plugin-fs = "2"
 
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
+panic = "abort"
+opt-level = "s"
