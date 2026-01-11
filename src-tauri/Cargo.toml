@@ -1,6 +1,6 @@
 [package]
 name = "mist"
-version = "0.2.0"
+version = "0.2.1"
 description = "Mist - A modern, performant folder size monitor for Windows."
 authors = ["FastFingertips"]
 edition = "2021"

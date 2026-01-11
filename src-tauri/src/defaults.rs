@@ -8,7 +8,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\Temp".to_string(),
             threshold: 1024.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_2".to_string(),
@@ -16,7 +16,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "C:\\Windows\\Temp".to_string(),
             threshold: 1024.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_3".to_string(),
@@ -24,7 +24,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\Spotify\\Data".to_string(),
             threshold: 1024.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_4".to_string(),
@@ -32,7 +32,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\Spotify\\Storage".to_string(),
             threshold: 2048.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_5".to_string(),
@@ -40,7 +40,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache".to_string(),
             threshold: 500.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_6".to_string(),
@@ -48,7 +48,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%APPDATA%\\discord\\Cache".to_string(),
             threshold: 500.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_7".to_string(),
@@ -56,7 +56,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%APPDATA%\\Code\\Cache".to_string(),
             threshold: 500.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_8".to_string(),
@@ -64,7 +64,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\NVIDIA\\GLCache".to_string(),
             threshold: 1024.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_9".to_string(),
@@ -72,7 +72,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\npm-cache".to_string(),
             threshold: 1024.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_10".to_string(),
@@ -80,7 +80,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "%LOCALAPPDATA%\\Yarn\\Cache".to_string(),
             threshold: 1024.0,
             enabled: false,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_11".to_string(),
@@ -88,7 +88,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "C:\\$Recycle.Bin".to_string(),
             threshold: 1000.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_12".to_string(),
@@ -96,7 +96,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "C:\\Windows\\Minidump".to_string(),
             threshold: 500.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_13".to_string(),
@@ -104,7 +104,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "C:\\Windows\\SoftwareDistribution\\Download".to_string(),
             threshold: 2048.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_14".to_string(),
@@ -112,7 +112,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "C:\\Windows\\Installer".to_string(),
             threshold: 500.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
         MonitorConfig {
             id: "def_15".to_string(),
@@ -120,7 +120,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             path: "C:\\Windows\\System32\\DriverStore\\FileRepository".to_string(),
             threshold: 500.0,
             enabled: true,
-            notify: true,
+            notify: false,
         },
     ]
 }

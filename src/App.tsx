@@ -114,7 +114,7 @@ function App() {
       path,
       threshold,
       enabled: true,
-      notify: true
+      notify: false
     };
 
     const updated = [...monitors, { ...newMonitor, loading: true }];
