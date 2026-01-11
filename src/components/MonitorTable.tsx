@@ -29,7 +29,8 @@ import {
     IconChevronUp,
     IconBell,
     IconBellOff,
-    IconStack
+    IconStack,
+    IconBan
 } from "@tabler/icons-react";
 import { MonitorStatus } from "../types";
 
@@ -145,15 +146,29 @@ export function MonitorTable({
                             const percentage = Math.min(100, (currentMB / m.threshold) * 100);
                             let color = 'teal';
                             let statusIcon = <IconCheck size={12} />;
-                            if (m.loading) { statusIcon = <Loader size={10} />; color = 'gray'; }
-                            else if (m.error) { color = 'red'; statusIcon = <IconX size={12} />; }
-                            else if (currentMB > m.threshold) { color = 'red'; statusIcon = <IconAlertTriangle size={12} />; }
-                            else if (currentMB > m.threshold * 0.8) { color = 'yellow'; statusIcon = <IconAlertTriangle size={12} />; }
+                            if (!m.enabled) {
+                                statusIcon = <IconBan size={12} />;
+                                color = 'gray';
+                            } else if (m.loading) {
+                                statusIcon = <Loader size={10} />;
+                                color = 'gray';
+                            } else if (m.error) {
+                                color = 'red';
+                                statusIcon = <IconX size={12} />;
+                            } else if (currentMB > m.threshold) {
+                                color = 'red';
+                                statusIcon = <IconAlertTriangle size={12} />;
+                            } else if (currentMB > m.threshold * 0.8) {
+                                color = 'yellow';
+                                statusIcon = <IconAlertTriangle size={12} />;
+                            }
 
                             return (
-                                <Table.Tr key={m.id} style={isNotFound ? { opacity: 0.5 } : undefined}>
+                                <Table.Tr key={m.id} style={{ opacity: m.enabled ? (isNotFound ? 0.6 : 1) : 0.4, filter: m.enabled ? 'none' : 'grayscale(100%)' }}>
                                     <Table.Td p="xs">
-                                        <ThemeIcon color={color} variant="light" size="sm" h={20} w={20} radius="xl">{statusIcon}</ThemeIcon>
+                                        <Tooltip label={!m.enabled ? "Disabled" : m.error || "OK"}>
+                                            <ThemeIcon color={color} variant="light" size="sm" h={20} w={20} radius="xl">{statusIcon}</ThemeIcon>
+                                        </Tooltip>
                                     </Table.Td>
                                     <Table.Td fw={500} p="xs" style={{ fontSize: '0.85rem' }}>{m.name}</Table.Td>
                                     <Table.Td p="xs">
