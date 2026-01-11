@@ -50,9 +50,9 @@ Mist is a simple, modern folder size monitor for Windows. It helps you keep trac
 - **Core**: [Tauri v2](https://tauri.app/)
 - **Frontend**: [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/)
 - **UI Components**: [Mantine v7](https://mantine.dev/)
-- **Backend Logic**: Rust
+- **Backend Logic**: [Rust](https://www.rust-lang.org/)
 - **Icons**: [Tabler Icons](https://tabler-icons.io/)
 
 ## License
 
-Distributed under the MIT License.
+Distributed under the [MIT License](LICENSE).
