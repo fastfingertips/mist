@@ -4,10 +4,11 @@ import { IconChartPie, IconMinus, IconX, IconSun, IconMoon, IconDeviceDesktop, I
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 interface TitleBarProps {
-    onOpenSettings: () => void;
+    readonly onOpenSettings: () => void;
+    readonly minimizeToTray: boolean;
 }
 
-export function TitleBar({ onOpenSettings }: Readonly<TitleBarProps>) {
+export function TitleBar({ onOpenSettings, minimizeToTray }: Readonly<TitleBarProps>) {
     const appWindow = getCurrentWindow();
     const { colorScheme, setColorScheme, clearColorScheme } = useMantineColorScheme();
 
@@ -51,7 +52,11 @@ export function TitleBar({ onOpenSettings }: Readonly<TitleBarProps>) {
                     </ActionIcon>
                 </Tooltip>
                 <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => appWindow.minimize()}><IconMinus size={14} /></ActionIcon>
-                <ActionIcon variant="subtle" color="red" size="sm" onClick={() => appWindow.close()}><IconX size={14} /></ActionIcon>
+                <Tooltip label={minimizeToTray ? "Minimize to Tray" : "Close"} openDelay={500}>
+                    <ActionIcon variant="subtle" color={minimizeToTray ? "gray" : "red"} size="sm" onClick={() => appWindow.close()}>
+                        <IconX size={14} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
         </Group>
     );

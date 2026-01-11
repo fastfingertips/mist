@@ -232,7 +232,7 @@ function App() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <TitleBar onOpenSettings={openSettings} />
+      <TitleBar onOpenSettings={openSettings} minimizeToTray={settings.minimize_to_tray} />
 
       {/* MODALS */}
       <AddMonitorModal
