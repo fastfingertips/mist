@@ -14,7 +14,8 @@ import {
     ScrollArea,
     Paper,
     CopyButton,
-    Badge
+    Badge,
+    Switch
 } from "@mantine/core";
 import {
     IconCheck,
@@ -58,7 +59,7 @@ function Th({ children, reversed, sorted, onSort, width, align }: ThProps) {
                     <Center>
                         <IconComponent style={{ width: rem(12), height: rem(12) }} stroke={1.5} color={sorted ? 'violet' : 'gray'} />
                     </Center>
-                    {align === 'right' && <Text fw={700} size="xs" tt="uppercase" c="dimmed">{children}</Text>}
+                    {align !== 'left' && align !== 'center' && <Text fw={700} size="xs" tt="uppercase" c="dimmed">{children}</Text>}
                 </Group>
             </UnstyledButton>
         </Table.Th>
@@ -75,6 +76,7 @@ interface MonitorTableProps {
     startEdit: (monitor: MonitorStatus) => void;
     removeMonitor: (id: string) => void;
     onToggleNotify: (id: string) => void;
+    onToggleEnabled: (id: string) => void;
     formatBytes: (bytes?: number) => string;
 }
 
@@ -93,6 +95,7 @@ export function MonitorTable({
     startEdit,
     removeMonitor,
     onToggleNotify,
+    onToggleEnabled,
     formatBytes
 }: Readonly<MonitorTableProps>) {
 
@@ -102,7 +105,8 @@ export function MonitorTable({
                 <Table verticalSpacing={4} horizontalSpacing="xs" striped highlightOnHover stickyHeader mb="xl">
                     <Table.Thead>
                         <Table.Tr>
-                            <Table.Th w={40} p="xs"></Table.Th>
+                            <Table.Th w={30} p="xs"></Table.Th>
+                            <Table.Th w={50} p="xs"></Table.Th>
                             <Th
                                 sorted={sortBy === 'name'}
                                 reversed={reverseSortDirection}
@@ -164,11 +168,20 @@ export function MonitorTable({
                             }
 
                             return (
-                                <Table.Tr key={m.id} style={{ opacity: m.enabled ? (isNotFound ? 0.6 : 1) : 0.4, filter: m.enabled ? 'none' : 'grayscale(100%)' }}>
+                                <Table.Tr key={m.id} style={{ opacity: m.enabled ? (isNotFound ? 0.6 : 1) : 0.6, filter: m.enabled ? 'none' : 'grayscale(100%)' }}>
                                     <Table.Td p="xs">
                                         <Tooltip label={!m.enabled ? "Disabled" : m.error || "OK"}>
                                             <ThemeIcon color={color} variant="light" size="sm" h={20} w={20} radius="xl">{statusIcon}</ThemeIcon>
                                         </Tooltip>
+                                    </Table.Td>
+                                    <Table.Td p="xs">
+                                        <Switch
+                                            checked={m.enabled}
+                                            onChange={() => onToggleEnabled(m.id)}
+                                            size="xs"
+                                            color="violet"
+                                            styles={{ input: { cursor: 'pointer' } }}
+                                        />
                                     </Table.Td>
                                     <Table.Td fw={500} p="xs" style={{ fontSize: '0.85rem' }}>{m.name}</Table.Td>
                                     <Table.Td p="xs">

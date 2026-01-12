@@ -209,6 +209,28 @@ function App() {
     saveToRust(updated);
   };
 
+  const handleToggleEnabled = (id: string) => {
+    let newStatus = false;
+    const updated = monitors.map(m => {
+      if (m.id === id) {
+        newStatus = !m.enabled;
+        return {
+          ...m,
+          enabled: newStatus,
+          loading: newStatus // Set loading if enabling
+        };
+      }
+      return m;
+    });
+    setMonitors(updated);
+    saveToRust(updated);
+
+    if (newStatus) {
+      const idx = updated.findIndex(m => m.id === id);
+      if (idx !== -1) scanOneStreaming(updated[idx]);
+    }
+  };
+
   const startEdit = (monitor: MonitorStatus) => {
     setEditingMonitor(monitor);
     openEdit();
@@ -343,6 +365,7 @@ function App() {
               startEdit={startEdit}
               removeMonitor={removeMonitor}
               onToggleNotify={handleToggleNotify}
+              onToggleEnabled={handleToggleEnabled}
               formatBytes={formatBytes}
             />
 
