@@ -10,6 +10,10 @@
 
 Mist is a simple, modern folder size monitor for Windows. It helps you keep track of cache directories, temp folders, or any specific path, and notifies you when they grow too large.
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/eee42355-414a-4dac-b51e-1a79af42bfef" alt="Mist Screenshot" width="800">
+</p>
+
 ## Download
 
 **[Download Latest Release](https://github.com/fastfingertips/mist/releases/latest)**
