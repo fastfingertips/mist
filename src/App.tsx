@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { AppShell, Container } from "@mantine/core";
+import { AppShell, Container, Box } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import "./App.css";
 
@@ -14,6 +14,7 @@ import { MonitorTable } from "./components/MonitorTable";
 import { AddMonitorModal } from "./components/AddMonitorModal";
 import { EditMonitorModal } from "./components/EditMonitorModal";
 import { SettingsModal } from "./components/SettingsModal";
+import { AboutFooter } from "./components/AboutFooter";
 
 type ScanProgress = {
   monitor_id: string;
@@ -23,13 +24,32 @@ type ScanProgress = {
   error: string | null;
 };
 
+const updateMonitorWithProgress = (monitors: MonitorStatus[], progress: ScanProgress): MonitorStatus[] => {
+  return monitors.map(m => {
+    if (m.id === progress.monitor_id) {
+      return {
+        ...m,
+        currentSizeBytes: progress.size_bytes,
+        fileCount: progress.file_count,
+        error: progress.error,
+        loading: !progress.done
+      };
+    }
+    return m;
+  });
+};
+
+const checkIfAnyLoading = (monitors: MonitorStatus[]): boolean => {
+  return monitors.some(m => m.loading && m.enabled);
+};
+
 function App() {
   const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
   const [scanning, setScanning] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ minimize_to_tray: true });
 
   // Sorting State
-  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>('name');
   const [reverseSortDirection, setReverseSortDirection] = useState(false);
 
   // Modals
@@ -42,32 +62,6 @@ function App() {
 
 
   // --- SCAN FUNCTIONS ---
-  // Legacy scan (non-streaming)
-  const scanOne = async (index: number, monitor: MonitorConfig) => {
-    try {
-      const result: any = await invoke("check_monitor_path", { path: monitor.path, maxDepth: monitor.max_depth || null });
-      setMonitors(prev => {
-        const newMonitors = [...prev];
-        if (newMonitors[index]) {
-          newMonitors[index] = {
-            ...newMonitors[index],
-            currentSizeBytes: result.size_bytes,
-            fileCount: result.file_count,
-            error: result.error,
-            loading: false
-          };
-        }
-        return newMonitors;
-      });
-    } catch (e: any) {
-      console.error("Scan failed for monitor index " + index, e);
-      setMonitors(prev => {
-        const newMonitors = [...prev];
-        if (newMonitors[index]) newMonitors[index] = { ...newMonitors[index], error: "Failed", loading: false };
-        return newMonitors;
-      });
-    }
-  };
 
   // Streaming scan (real-time updates)
   const scanOneStreaming = useCallback((monitor: MonitorConfig) => {
@@ -107,29 +101,18 @@ function App() {
   useEffect(() => {
     const unlisten = listen<ScanProgress>("scan-progress", (event) => {
       const progress = event.payload;
-      setMonitors(prev => {
-        return prev.map(m => {
-          if (m.id === progress.monitor_id) {
-            return {
-              ...m,
-              currentSizeBytes: progress.size_bytes,
-              fileCount: progress.file_count,
-              error: progress.error,
-              loading: !progress.done
-            };
-          }
-          return m;
-        });
-      });
 
-      // Check if all scans are done
-      if (progress.done) {
-        setMonitors(prev => {
-          const allDone = prev.every(m => !m.loading || !m.enabled);
-          if (allDone) setScanning(false);
-          return prev;
-        });
-      }
+      setMonitors(prev => {
+        const updated = updateMonitorWithProgress(prev, progress);
+
+        if (progress.done) {
+          // Check if all scans are done
+          const anyLoading = checkIfAnyLoading(updated);
+          if (!anyLoading) setScanning(false);
+        }
+
+        return updated;
+      });
     });
 
     return () => { unlisten.then(fn => fn()); };
@@ -170,7 +153,7 @@ function App() {
     const updated = [...monitors, { ...newMonitor, loading: true }];
     setMonitors(updated);
     saveToRust(updated);
-    scanOne(updated.length - 1, newMonitor);
+    scanOneStreaming(newMonitor);
   };
 
   const handleEditSave = (id: string, name: string, path: string, threshold: number, maxDepth: number | undefined, enabled: boolean) => {
@@ -261,23 +244,16 @@ function App() {
 
   const handleOpenConfig = () => invoke("open_config_folder").catch(console.error);
 
-  const formatBytes = (bytes?: number) => {
-    if (bytes === undefined) return "---";
-    const mb = bytes / (1024 * 1024);
-    if (mb > 1000) {
-      return `${(mb / 1024).toFixed(2)} GB`;
-    }
-    return `${mb.toFixed(0)} MB`;
-  };
-
   // --- SORTING ---
   const stats = useMemo(() => {
     let totalSize = 0;
     let criticalCount = 0;
     monitors.forEach(m => {
-      if (m.currentSizeBytes) totalSize += m.currentSizeBytes;
-      const mb = (m.currentSizeBytes || 0) / (1024 * 1024);
-      if (mb > m.threshold) criticalCount++;
+      if (m.enabled) {
+        if (m.currentSizeBytes) totalSize += m.currentSizeBytes;
+        const mb = (m.currentSizeBytes || 0) / (1024 * 1024);
+        if (mb > m.threshold) criticalCount++;
+      }
     });
     return { totalSize, criticalCount };
   }, [monitors]);
@@ -344,33 +320,36 @@ function App() {
       />
 
       {/* Main Content Area */}
-      <AppShell padding={0} withBorder={false} style={{ flex: 1, overflow: 'hidden' }}>
+      <AppShell padding={0} withBorder={false} footer={{ height: 40 }} style={{ flex: 1, overflow: 'hidden' }}>
         <AppShell.Main style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Container size="xl" px="sm" py="xs" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
+          <Container size="xl" px="sm" pt="md" pb={40} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
 
             <StatsGrid
               stats={stats}
               scanning={scanning}
               onAdd={openAdd}
               onScanAll={scanAll}
-              formatBytes={formatBytes}
             />
 
-            <MonitorTable
-              data={sortedData}
-              sortBy={sortBy}
-              reverseSortDirection={reverseSortDirection}
-              onSort={setSorting}
-              openFolder={openFolder}
-              startEdit={startEdit}
-              removeMonitor={removeMonitor}
-              onToggleNotify={handleToggleNotify}
-              onToggleEnabled={handleToggleEnabled}
-              formatBytes={formatBytes}
-            />
+            <Box style={{ flex: '0 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginBottom: 'var(--mantine-spacing-md)' }}>
+              <MonitorTable
+                data={sortedData}
+                sortBy={sortBy}
+                reverseSortDirection={reverseSortDirection}
+                onSort={setSorting}
+                openFolder={openFolder}
+                startEdit={startEdit}
+                removeMonitor={removeMonitor}
+                onToggleNotify={handleToggleNotify}
+                onToggleEnabled={handleToggleEnabled}
+              />
+            </Box>
 
           </Container>
         </AppShell.Main>
+        <AppShell.Footer withBorder={false}>
+          <AboutFooter />
+        </AppShell.Footer>
       </AppShell>
     </div>
   );

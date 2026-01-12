@@ -3,6 +3,7 @@ import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "
 import { invoke } from '@tauri-apps/api/core';
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { AppSettings } from "../types";
+import { AppColors } from "../theme";
 
 interface SettingsModalProps {
     readonly opened: boolean;
@@ -85,7 +86,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
 
                     <Group justify="space-between" align="center">
                         <Group gap={8}>
-                            <ThemeIcon variant="light" color="blue" size="md"><IconFolder size={16} /></ThemeIcon>
+                            <ThemeIcon variant="light" color={AppColors.info} size="md"><IconFolder size={16} /></ThemeIcon>
                             <Text size="sm">Config Folder</Text>
                         </Group>
                         <Button size="xs" variant="light" onClick={onOpenConfig}>Open</Button>
@@ -93,10 +94,10 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
 
                     <Group justify="space-between" align="center">
                         <Group gap={8}>
-                            <ThemeIcon variant="light" color="red" size="md"><IconReload size={16} /></ThemeIcon>
+                            <ThemeIcon variant="light" color={AppColors.danger} size="md"><IconReload size={16} /></ThemeIcon>
                             <Text size="sm">Factory Reset</Text>
                         </Group>
-                        <Button size="xs" color="red" variant="subtle" onClick={async () => { if (await confirm("Reset all monitors to default?", { title: "Factory Reset", kind: "warning" })) onRestore(); }}>Restore</Button>
+                        <Button size="xs" color={AppColors.danger} variant="light" onClick={async () => { if (await confirm("Reset all monitors to default?", { title: "Factory Reset", kind: "warning" })) onRestore(); }}>Restore</Button>
                     </Group>
                 </Stack>
             </Stack>

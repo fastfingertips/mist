@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Modal, Stack, TextInput, ActionIcon, NumberInput, Button } from "@mantine/core";
 import { IconFolder } from "@tabler/icons-react";
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { AppColors } from "../theme";
+import { handleFolderBrowse } from "../utils";
 
 interface AddMonitorModalProps {
     opened: boolean;
@@ -13,26 +14,6 @@ export function AddMonitorModal({ opened, onClose, onAdd }: Readonly<AddMonitorM
     const [path, setPath] = useState('');
     const [name, setName] = useState('');
     const [threshold, setThreshold] = useState<string | number>(1024);
-
-    const handleBrowse = async () => {
-        try {
-            const selected = await openDialog({
-                directory: true,
-                multiple: false,
-            });
-
-            if (selected) {
-                const pathStr = selected;
-                setPath(pathStr);
-                const sep = pathStr.includes('\\') ? '\\' : '/';
-                const parts = pathStr.split(sep).filter(p => p.length > 0);
-                const autoName = parts.at(-1);
-                if (autoName) setName(autoName);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
 
     const handleSubmit = () => {
         if (!path) return;
@@ -53,7 +34,7 @@ export function AddMonitorModal({ opened, onClose, onAdd }: Readonly<AddMonitorM
                     value={path}
                     onChange={(e) => setPath(e.currentTarget.value)}
                     rightSection={
-                        <ActionIcon variant="light" onClick={handleBrowse} title="Browse Folder">
+                        <ActionIcon variant="light" color={AppColors.primary} onClick={() => handleFolderBrowse(setPath, setName)} title="Browse Folder">
                             <IconFolder size={16} />
                         </ActionIcon>
                     }
@@ -65,7 +46,7 @@ export function AddMonitorModal({ opened, onClose, onAdd }: Readonly<AddMonitorM
                     onChange={(e) => setName(e.currentTarget.value)}
                 />
                 <NumberInput label="Threshold (MB)" value={threshold} onChange={setThreshold} />
-                <Button onClick={handleSubmit} mt="md">Add Monitor</Button>
+                <Button onClick={handleSubmit} mt="md" color={AppColors.primary}>Add Monitor</Button>
             </Stack>
         </Modal>
     );

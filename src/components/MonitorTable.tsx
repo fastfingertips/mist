@@ -1,3 +1,4 @@
+import React from "react";
 import {
     Table,
     Text,
@@ -34,6 +35,8 @@ import {
     IconBan
 } from "@tabler/icons-react";
 import { MonitorStatus } from "../types";
+import { AppColors } from "../theme";
+import { formatBytes } from "../utils";
 
 // Th Component
 interface ThProps {
@@ -55,11 +58,29 @@ function Th({ children, reversed, sorted, onSort, width, align }: ThProps) {
         <Table.Th w={width} p="xs">
             <UnstyledButton onClick={onSort} style={{ width: '100%' }}>
                 <Group justify={align === 'right' ? 'flex-end' : 'space-between'} wrap="nowrap" gap={4}>
-                    {align !== 'right' && <Text fw={700} size="xs" tt="uppercase" c="dimmed">{children}</Text>}
-                    <Center>
-                        <IconComponent style={{ width: rem(12), height: rem(12) }} stroke={1.5} color={sorted ? 'violet' : 'gray'} />
-                    </Center>
-                    {align !== 'left' && align !== 'center' && <Text fw={700} size="xs" tt="uppercase" c="dimmed">{children}</Text>}
+                    {align === 'right' ? (
+                        <>
+                            <Center>
+                                <IconComponent
+                                    style={{ width: rem(12), height: rem(12) }}
+                                    stroke={1.5}
+                                    color={sorted ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-dimmed)'}
+                                />
+                            </Center>
+                            <Text fw={700} size="xs" tt="uppercase" c="dimmed">{children}</Text>
+                        </>
+                    ) : (
+                        <>
+                            <Text fw={700} size="xs" tt="uppercase" c="dimmed">{children}</Text>
+                            <Center>
+                                <IconComponent
+                                    style={{ width: rem(12), height: rem(12) }}
+                                    stroke={1.5}
+                                    color={sorted ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-dimmed)'}
+                                />
+                            </Center>
+                        </>
+                    )}
                 </Group>
             </UnstyledButton>
         </Table.Th>
@@ -77,7 +98,6 @@ interface MonitorTableProps {
     removeMonitor: (id: string) => void;
     onToggleNotify: (id: string) => void;
     onToggleEnabled: (id: string) => void;
-    formatBytes: (bytes?: number) => string;
 }
 
 function formatFileCount(count: number): string {
@@ -96,13 +116,42 @@ export function MonitorTable({
     removeMonitor,
     onToggleNotify,
     onToggleEnabled,
-    formatBytes
 }: Readonly<MonitorTableProps>) {
+    const viewportRef = React.useRef<HTMLDivElement>(null);
+    const [showScrollHint, setShowScrollHint] = React.useState(false);
+
+    const checkScroll = React.useCallback(() => {
+        if (viewportRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
+            // Show hint if scrollable AND not at bottom (with 5px threshold)
+            const isScrollable = scrollHeight > clientHeight + 1;
+            const isAtBottom = scrollTop + clientHeight >= scrollHeight - 5;
+            setShowScrollHint(isScrollable && !isAtBottom);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        // Initial check and on data changes
+        checkScroll();
+
+        // Add listener for manual scrolls
+        const viewport = viewportRef.current;
+        if (viewport) {
+            viewport.addEventListener('scroll', checkScroll);
+            return () => viewport.removeEventListener('scroll', checkScroll);
+        }
+    }, [data, checkScroll]);
+
+    // Also check on window resize
+    React.useEffect(() => {
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, [checkScroll]);
 
     return (
-        <Paper withBorder={false} radius="md" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-            <ScrollArea style={{ height: '100%' }} scrollbars="y" type="scroll" viewportProps={{ style: { paddingBottom: 80 } }}>
-                <Table verticalSpacing={4} horizontalSpacing="xs" striped highlightOnHover stickyHeader mb="xl">
+        <Paper withBorder={false} radius="md" style={{ flex: '0 1 auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <ScrollArea.Autosize viewportRef={viewportRef} mah="100%" scrollbars="y" type="scroll" viewportProps={{ style: { paddingBottom: 16 } }}>
+                <Table verticalSpacing={4} horizontalSpacing="xs" striped highlightOnHover stickyHeader>
                     <Table.Thead>
                         <Table.Tr>
                             <Table.Th w={30} p="xs"></Table.Th>
@@ -148,29 +197,29 @@ export function MonitorTable({
                             const isNotFound = m.error === "Path not found"; // Added for path not found error
                             const currentMB = (m.currentSizeBytes || 0) / (1024 * 1024);
                             const percentage = Math.min(100, (currentMB / m.threshold) * 100);
-                            let color = 'teal';
+                            let color = AppColors.success;
                             let statusIcon = <IconCheck size={12} />;
                             if (!m.enabled) {
                                 statusIcon = <IconBan size={12} />;
-                                color = 'gray';
+                                color = AppColors.neutral;
                             } else if (m.loading) {
                                 statusIcon = <Loader size={10} />;
-                                color = 'gray';
+                                color = AppColors.neutral;
                             } else if (m.error) {
-                                color = 'red';
+                                color = AppColors.danger;
                                 statusIcon = <IconX size={12} />;
                             } else if (currentMB > m.threshold) {
-                                color = 'red';
+                                color = AppColors.danger;
                                 statusIcon = <IconAlertTriangle size={12} />;
                             } else if (currentMB > m.threshold * 0.8) {
-                                color = 'yellow';
+                                color = AppColors.warning;
                                 statusIcon = <IconAlertTriangle size={12} />;
                             }
 
                             return (
-                                <Table.Tr key={m.id} style={{ opacity: m.enabled ? (isNotFound ? 0.6 : 1) : 0.6, filter: m.enabled ? 'none' : 'grayscale(100%)' }}>
+                                <Table.Tr key={m.id} style={{ opacity: (m.enabled && !isNotFound) ? 1 : 0.6, filter: m.enabled ? 'none' : 'grayscale(100%)' }}>
                                     <Table.Td p="xs">
-                                        <Tooltip label={!m.enabled ? "Disabled" : m.error || "OK"}>
+                                        <Tooltip label={m.enabled ? (m.error || "OK") : "Disabled"}>
                                             <ThemeIcon color={color} variant="light" size="sm" h={20} w={20} radius="xl">{statusIcon}</ThemeIcon>
                                         </Tooltip>
                                     </Table.Td>
@@ -179,7 +228,7 @@ export function MonitorTable({
                                             checked={m.enabled}
                                             onChange={() => onToggleEnabled(m.id)}
                                             size="xs"
-                                            color="violet"
+                                            color={AppColors.primary}
                                             styles={{ input: { cursor: 'pointer' } }}
                                         />
                                     </Table.Td>
@@ -201,17 +250,19 @@ export function MonitorTable({
                                                     </Tooltip>
                                                 )}
                                             </CopyButton>
-                                            <ActionIcon variant="transparent" color="gray" size="xs" onClick={() => openFolder(m.path)}><IconFolderOpen size={14} /></ActionIcon>
+                                            <ActionIcon variant="transparent" color={AppColors.neutral} size="xs" onClick={() => openFolder(m.path)}>
+                                                <IconFolderOpen size={14} />
+                                            </ActionIcon>
                                             {m.max_depth && m.max_depth > 0 && (
                                                 <Tooltip label={`Scan limited to ${m.max_depth} levels deep`}>
-                                                    <Badge size="xs" variant="light" color="grape" leftSection={<IconStack size={10} />}>D:{m.max_depth}</Badge>
+                                                    <Badge size="xs" variant="light" color={AppColors.info} leftSection={<IconStack size={10} />}>D:{m.max_depth}</Badge>
                                                 </Tooltip>
                                             )}
                                         </Group>
                                     </Table.Td>
                                     <Table.Td p="xs">
                                         {isNotFound ? (
-                                            <Badge color="red" variant="light" size="xs">Not Found</Badge>
+                                            <Badge color={AppColors.danger} variant="light" size="xs">Not Found</Badge>
                                         ) : (
                                             <Tooltip label={`${percentage.toFixed(0)}%`} withArrow>
                                                 <Progress value={percentage} color={color} size="sm" h={6} radius="xl" animated={m.loading || currentMB > m.threshold} />
@@ -238,17 +289,17 @@ export function MonitorTable({
                                     </Table.Td>
                                     <Table.Td p="xs">
                                         <Tooltip label={m.notify ? "Notifications ON" : "Notifications OFF"}>
-                                            <ActionIcon variant="subtle" color={m.notify ? "yellow" : "gray"} size="sm" onClick={() => onToggleNotify(m.id)}>
+                                            <ActionIcon variant="subtle" color={m.notify ? AppColors.warning : AppColors.neutral} size="sm" onClick={() => onToggleNotify(m.id)}>
                                                 {m.notify ? <IconBell size={14} /> : <IconBellOff size={14} />}
                                             </ActionIcon>
                                         </Tooltip>
                                     </Table.Td>
                                     <Table.Td p="xs">
                                         <Menu shadow="md" width={160} position="bottom-end">
-                                            <Menu.Target><ActionIcon variant="subtle" color="gray" size="sm"><IconDots size={14} /></ActionIcon></Menu.Target>
+                                            <Menu.Target><ActionIcon variant="subtle" color={AppColors.neutral} size="sm"><IconDots size={14} /></ActionIcon></Menu.Target>
                                             <Menu.Dropdown>
                                                 <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => startEdit(m)}>Edit Settings</Menu.Item>
-                                                <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => removeMonitor(m.id)}>Stop Tracking</Menu.Item>
+                                                <Menu.Item color={AppColors.danger} leftSection={<IconTrash size={14} />} onClick={() => removeMonitor(m.id)}>Stop Tracking</Menu.Item>
                                             </Menu.Dropdown>
                                         </Menu>
                                     </Table.Td>
@@ -257,7 +308,18 @@ export function MonitorTable({
                         })}
                     </Table.Tbody>
                 </Table>
-            </ScrollArea>
+            </ScrollArea.Autosize>
+
+            <Group justify="space-between" px="xs" py={6} bg="var(--mantine-color-default)" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+                <Text size="10px" c="dimmed" fw={700} tt="uppercase">
+                    Tracking {data.length} {data.length === 1 ? 'Location' : 'Locations'}
+                </Text>
+                {showScrollHint && (
+                    <Text size="10px" c={AppColors.primary} fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
+                        ↓ Scroll for more
+                    </Text>
+                )}
+            </Group>
         </Paper>
     );
 }

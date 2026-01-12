@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Modal, Stack, TextInput, ActionIcon, NumberInput, Button, Tooltip, Switch, Group, Text } from "@mantine/core";
 import { IconFolder } from "@tabler/icons-react";
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { MonitorStatus } from "../types";
+import { AppColors } from "../theme";
+import { handleFolderBrowse } from "../utils";
 
 interface EditMonitorModalProps {
     opened: boolean;
@@ -29,26 +30,6 @@ export function EditMonitorModal({ opened, onClose, monitor, onSave }: Readonly<
         }
     }, [monitor]);
 
-    const handleBrowse = async () => {
-        try {
-            const selected = await openDialog({
-                directory: true,
-                multiple: false,
-            });
-
-            if (selected) {
-                const pathStr = selected;
-                setPath(pathStr);
-                const sep = pathStr.includes('\\') ? '\\' : '/';
-                const parts = pathStr.split(sep).filter(p => p.length > 0);
-                const autoName = parts.at(-1);
-                if (autoName) setName(autoName);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
     const handleSubmit = () => {
         if (!monitor || !path) return;
         const depthValue = maxDepth === '' || maxDepth === 0 ? undefined : Number(maxDepth);
@@ -64,7 +45,7 @@ export function EditMonitorModal({ opened, onClose, monitor, onSave }: Readonly<
                     value={path}
                     onChange={(e) => setPath(e.currentTarget.value)}
                     rightSection={
-                        <ActionIcon variant="light" onClick={handleBrowse} title="Browse Folder">
+                        <ActionIcon variant="light" color={AppColors.primary} onClick={() => handleFolderBrowse(setPath, setName)} title="Browse Folder">
                             <IconFolder size={16} />
                         </ActionIcon>
                     }
@@ -92,7 +73,7 @@ export function EditMonitorModal({ opened, onClose, monitor, onSave }: Readonly<
                         onChange={(e) => setEnabled(e.currentTarget.checked)}
                     />
                 </Group>
-                <Button onClick={handleSubmit} mt="md" color="violet">Save Changes</Button>
+                <Button onClick={handleSubmit} mt="md" color={AppColors.primary}>Save Changes</Button>
             </Stack>
         </Modal>
     );

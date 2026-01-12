@@ -139,31 +139,33 @@ fn expand_env_vars(path: &str) -> String {
     expanded
 }
 
-// This function is no longer used in the new `check_monitor_path` logic.
-// fn expand_env_vars(path: &str) -> String {
-//     let re = Regex::new(r"%([^%]+)%").unwrap();
-//     re.replace_all(path, |caps: &regex::Captures| {
-//         let var_name = &caps[1];
-//         env::var(var_name).unwrap_or_else(|_| caps[0].to_string())
-//     })
-//     .to_string()
-// }
+fn scan_directory(path: &str, max_depth: Option<usize>) -> Result<(u64, u64), String> {
+    let expanded_path = expand_env_vars(path);
+    let path_buf = std::path::PathBuf::from(&expanded_path);
 
-// This function is no longer used directly in the new `check_monitor_path` logic.
-// fn calculate_size(path: &str) -> u64 {
-//     let path_buf = PathBuf::from(path);
-//     if !path_buf.exists() {
-//         return 0;
-//     }
+    if !path_buf.exists() {
+        return Err("Path not found".to_string());
+    }
 
-//     WalkDir::new(&path_buf)
-//         .into_iter()
-//         .filter_map(|e| e.ok())
-//         .filter_map(|e| e.metadata().ok())
-//         .filter(|m| m.is_file())
-//         .map(|m| m.len())
-//         .sum()
-// }
+    let mut total_size = 0;
+    let mut file_count = 0;
+    
+    let walker = match max_depth {
+        Some(d) if d > 0 => WalkDir::new(&path_buf).max_depth(d),
+        _ => WalkDir::new(&path_buf),
+    };
+    
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            file_count += 1;
+            if let Ok(metadata) = entry.metadata() {
+                total_size += metadata.len();
+            }
+        }
+    }
+    
+    Ok((total_size, file_count))
+}
 
 // --- COMMANDS ---
 
@@ -189,36 +191,10 @@ fn save_monitors(app_handle: tauri::AppHandle, monitors: Vec<MonitorConfig>) {
 
 #[tauri::command]
 fn check_monitor_path(path: String, max_depth: Option<usize>) -> CheckResult {
-    let expanded_path = expand_env_vars(&path);
-    let path_buf = std::path::PathBuf::from(&expanded_path);
-
-    if !path_buf.exists() {
-        return CheckResult { 
-            size_bytes: 0,
-            file_count: 0,
-            error: Some("Path not found".to_string()) 
-        };
+    match scan_directory(&path, max_depth) {
+        Ok((size_bytes, file_count)) => CheckResult { size_bytes, file_count, error: None },
+        Err(e) => CheckResult { size_bytes: 0, file_count: 0, error: Some(e) }
     }
-
-    let mut total_size = 0;
-    let mut file_count = 0;
-    
-    // None or Some(0) = unlimited depth
-    let walker = match max_depth {
-        Some(d) if d > 0 => WalkDir::new(&path_buf).max_depth(d),
-        _ => WalkDir::new(&path_buf), // unlimited
-    };
-    
-    for entry in walker.into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() {
-            file_count += 1;
-            if let Ok(metadata) = entry.metadata() {
-                total_size += metadata.len();
-            }
-        }
-    }
-    
-    CheckResult { size_bytes: total_size, file_count, error: None }
 }
 
 #[tauri::command]
@@ -312,21 +288,52 @@ fn import_monitors(app_handle: tauri::AppHandle, path: String) -> Result<(), Str
     Ok(())
 }
 
+#[tauri::command]
+fn get_windows_accent_color() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::*;
+        use winreg::RegKey;
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        
+        // Try DWM ColorizationColor (Usually ARGB)
+        if let Ok(dwm) = hkcu.open_subkey("Software\\Microsoft\\Windows\\DWM") {
+             if let Ok(color) = dwm.get_value::<u32, _>("ColorizationColor") {
+                  println!("DWM Color: {:X}", color);
+                  return Some(format!("#{:06X}", color & 0x00FFFFFF));
+             }
+        }
+        
+        // Fallback: Explorer AccentColorMenu (Usually ABGR)
+        if let Ok(accent) = hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Accent") {
+             if let Ok(color) = accent.get_value::<u32, _>("AccentColorMenu") {
+                  println!("Explorer Accent: {:X}", color);
+                  let r = color & 0xFF;
+                  let g = (color >> 8) & 0xFF;
+                  let b = (color >> 16) & 0xFF;
+                  return Some(format!("#{:02X}{:02X}{:02X}", r, g, b));
+             }
+        }
+    }
+    None
+}
+
 // Background Worker
 fn start_background_worker(app_handle: tauri::AppHandle) {
     loop {
         let monitors = load_monitors_from_file(&app_handle);
         for monitor in monitors {
             if monitor.enabled && monitor.notify {
-                let result = check_monitor_path(monitor.path.clone(), monitor.max_depth);
-                let mb = result.size_bytes as f64 / (1024.0 * 1024.0);
-                if mb > monitor.threshold {
-                    app_handle.notification()
-                        .builder()
-                        .title(format!("{} is full!", monitor.name))
-                        .body(format!("Current size: {:.0} MB (Threshold: {:.0} MB)", mb, monitor.threshold))
-                        .show()
-                        .ok();
+                if let Ok((size_bytes, _)) = scan_directory(&monitor.path, monitor.max_depth) {
+                    let mb = size_bytes as f64 / (1024.0 * 1024.0);
+                    if mb > monitor.threshold {
+                        app_handle.notification()
+                            .builder()
+                            .title(format!("{} is full!", monitor.name))
+                            .body(format!("Current size: {:.0} MB (Threshold: {:.0} MB)", mb, monitor.threshold))
+                            .show()
+                            .ok();
+                    }
                 }
             }
         }
@@ -405,7 +412,8 @@ pub fn run() {
             export_monitors,
             import_monitors,
             get_settings,
-            save_settings
+            save_settings,
+            get_windows_accent_color
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -7,8 +7,6 @@ body,
   padding: 0;
   overflow: hidden;
   /* App-like structure */
-  overflow: hidden;
-  /* App-like structure */
   /* Handled by Mantine Theme */
 }
 
@@ -18,7 +16,16 @@ body {
   cursor: default;
 }
 
-/* Custom scrollbar matching GitHub Dark theme */
+/* Glassmorphism: Semi-transparent background */
+[data-mantine-color-scheme='dark'] body {
+  background-color: rgba(1, 4, 9, 0.70) !important;
+}
+
+[data-mantine-color-scheme='light'] body {
+  background-color: rgba(255, 255, 255, 0.70) !important;
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -29,16 +36,41 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #30363d;
+  background: var(--mantine-color-dark-5);
   border-radius: 6px;
-  border: 2px solid #0d1117;
+  border: 2px solid var(--mantine-color-dark-8);
   /* Padding effect */
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+  background: var(--mantine-color-dark-4);
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Footer Links */
+.footer-link {
+  color: var(--mantine-color-dimmed) !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--mantine-primary-color-filled) !important;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }

@@ -1,6 +1,6 @@
 [package]
 name = "mist"
-version = "0.3.2"
+version = "0.4.0"
 description = "Mist - A modern, performant folder size monitor for Windows."
 authors = ["FastFingertips"]
 edition = "2021"
@@ -31,7 +31,9 @@ tauri-plugin-notification = "2"
 chrono = "0.4.42"
 window-vibrancy = "0.7.1"
 tokio = { version = "1.49.0", features = ["full"] }
+winreg = "0.52"
 tauri-plugin-dialog = "2.5.0"
+tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
 
 [profile.release]
