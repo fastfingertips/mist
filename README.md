@@ -71,13 +71,15 @@ If you want to build from source or contribute:
 
 ## Tech Stack
 
-| Component | Technology | Rationale |
+| Component | Technology | Purpose & Example |
 | :--- | :--- | :--- |
-| **Desktop Framework** | [Tauri v2](https://tauri.app/) | Low memory footprint, tiny binary size, and high security compared to Electron. |
-| **Frontend Framework** | [React v19](https://react.dev/) + [Vite v7](https://vitejs.dev/) | Industry standard for building dynamic, reactive interfaces with lightning-fast HMR. |
-| **Languages** | [Rust](https://www.rust-lang.org/) + [TypeScript](https://www.typescriptlang.org/) | Rust for background performance and memory safety; TypeScript for type-safe frontend development. |
-| **UI Library** | [Mantine v8](https://mantine.dev/) | Premium, accessible components with built-in dark mode and high customizability. |
-| **Icons** | [Tabler Icons](https://tabler-icons.io/) | Vast collection of clean, consistent, and minimal SVG icons. |
+| **Desktop Framework** | [Tauri v2](https://tauri.app/) | **Native Windows integration.** Used `invoke()` for Rust IPC and `window-vibrancy` for Mica effect. |
+| **Frontend Framework** | [React v19](https://react.dev/) + [Vite v7](https://vitejs.dev/) | **Reactive UI.** Used `useState`, `useMemo` for state and `useDisclosure` for modals. |
+| **Backend Language** | [Rust](https://www.rust-lang.org/) | **Filesystem operations.** Used `walkdir` for directory traversal and `serde` for JSON config. |
+| **Frontend Language** | [TypeScript](https://www.typescriptlang.org/) | **Type safety.** Defined `MonitorConfig`, `MonitorStatus` interfaces mirroring Rust structs. |
+| **UI Library** | [Mantine v8](https://mantine.dev/) | **Pre-built components.** Used `Table`, `Modal`, `Progress`, `Switch` for the main UI. |
+| **Icons** | [Tabler Icons](https://tabler-icons.io/) | **Consistent iconography.** Used `IconFolderOpen`, `IconBell`, `IconAlertTriangle` throughout. |
+| **Plugins** | Tauri Plugins | **Native features.** Used `plugin-dialog` for file picker and `plugin-notification` for alerts. |
 
 ## License
 
