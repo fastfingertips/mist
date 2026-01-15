@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
-use tauri::{Manager, Emitter};
-use window_vibrancy::apply_mica;
-use walkdir::WalkDir;
-use tauri_plugin_notification::NotificationExt;
 use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent, MouseButtonState, MouseButton};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
+use walkdir::WalkDir;
+use window_vibrancy::apply_mica;
 
 mod defaults;
 
@@ -28,11 +28,20 @@ pub struct MonitorConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppSettings {
     pub minimize_to_tray: bool,
+    #[serde(default = "default_check_interval")]
+    pub check_interval_minutes: u32,
+}
+
+fn default_check_interval() -> u32 {
+    60
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
-        Self { minimize_to_tray: true }
+        Self {
+            minimize_to_tray: true,
+            check_interval_minutes: 60,
+        }
     }
 }
 
@@ -77,7 +86,11 @@ fn get_config_path(app_handle: &tauri::AppHandle) -> PathBuf {
 }
 
 fn get_settings_path(app_handle: &tauri::AppHandle) -> PathBuf {
-    app_handle.path().app_config_dir().unwrap().join("settings.json")
+    app_handle
+        .path()
+        .app_config_dir()
+        .unwrap()
+        .join("settings.json")
 }
 
 fn load_settings(app_handle: &tauri::AppHandle) -> AppSettings {
@@ -126,7 +139,7 @@ fn save_monitors_to_file(app_handle: &tauri::AppHandle, monitors: &Vec<MonitorCo
 // Helpers
 fn expand_env_vars(path: &str) -> String {
     let mut expanded = path.to_string();
-    
+
     // Windows style %VAR%
     let re = regex::Regex::new(r"%([^%]+)%").unwrap();
     for cap in re.captures_iter(path) {
@@ -135,7 +148,7 @@ fn expand_env_vars(path: &str) -> String {
             expanded = expanded.replace(&cap[0], &value);
         }
     }
-    
+
     expanded
 }
 
@@ -149,12 +162,12 @@ fn scan_directory(path: &str, max_depth: Option<usize>) -> Result<(u64, u64), St
 
     let mut total_size = 0;
     let mut file_count = 0;
-    
+
     let walker = match max_depth {
         Some(d) if d > 0 => WalkDir::new(&path_buf).max_depth(d),
         _ => WalkDir::new(&path_buf),
     };
-    
+
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             file_count += 1;
@@ -163,7 +176,7 @@ fn scan_directory(path: &str, max_depth: Option<usize>) -> Result<(u64, u64), St
             }
         }
     }
-    
+
     Ok((total_size, file_count))
 }
 
@@ -192,35 +205,53 @@ fn save_monitors(app_handle: tauri::AppHandle, monitors: Vec<MonitorConfig>) {
 #[tauri::command]
 fn check_monitor_path(path: String, max_depth: Option<usize>) -> CheckResult {
     match scan_directory(&path, max_depth) {
-        Ok((size_bytes, file_count)) => CheckResult { size_bytes, file_count, error: None },
-        Err(e) => CheckResult { size_bytes: 0, file_count: 0, error: Some(e) }
+        Ok((size_bytes, file_count)) => CheckResult {
+            size_bytes,
+            file_count,
+            error: None,
+        },
+        Err(e) => CheckResult {
+            size_bytes: 0,
+            file_count: 0,
+            error: Some(e),
+        },
     }
 }
 
 #[tauri::command]
-fn check_monitor_path_streaming(app_handle: tauri::AppHandle, monitor_id: String, path: String, max_depth: Option<usize>) {
+fn check_monitor_path_streaming(
+    app_handle: tauri::AppHandle,
+    monitor_id: String,
+    path: String,
+    max_depth: Option<usize>,
+) {
     let expanded_path = expand_env_vars(&path);
     let path_buf = std::path::PathBuf::from(&expanded_path);
 
     if !path_buf.exists() {
-        app_handle.emit("scan-progress", ScanProgress {
-            monitor_id,
-            size_bytes: 0,
-            file_count: 0,
-            done: true,
-            error: Some("Path not found".to_string()),
-        }).ok();
+        app_handle
+            .emit(
+                "scan-progress",
+                ScanProgress {
+                    monitor_id,
+                    size_bytes: 0,
+                    file_count: 0,
+                    done: true,
+                    error: Some("Path not found".to_string()),
+                },
+            )
+            .ok();
         return;
     }
 
     let mut total_size: u64 = 0;
     let mut file_count: u64 = 0;
-    
+
     let walker = match max_depth {
         Some(d) if d > 0 => WalkDir::new(&path_buf).max_depth(d),
         _ => WalkDir::new(&path_buf),
     };
-    
+
     for entry in walker.into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             file_count += 1;
@@ -229,25 +260,35 @@ fn check_monitor_path_streaming(app_handle: tauri::AppHandle, monitor_id: String
             }
             // Emit progress every 500 files
             if file_count % 500 == 0 {
-                app_handle.emit("scan-progress", ScanProgress {
-                    monitor_id: monitor_id.clone(),
-                    size_bytes: total_size,
-                    file_count,
-                    done: false,
-                    error: None,
-                }).ok();
+                app_handle
+                    .emit(
+                        "scan-progress",
+                        ScanProgress {
+                            monitor_id: monitor_id.clone(),
+                            size_bytes: total_size,
+                            file_count,
+                            done: false,
+                            error: None,
+                        },
+                    )
+                    .ok();
             }
         }
     }
-    
+
     // Final result
-    app_handle.emit("scan-progress", ScanProgress {
-        monitor_id,
-        size_bytes: total_size,
-        file_count,
-        done: true,
-        error: None,
-    }).ok();
+    app_handle
+        .emit(
+            "scan-progress",
+            ScanProgress {
+                monitor_id,
+                size_bytes: total_size,
+                file_count,
+                done: true,
+                error: None,
+            },
+        )
+        .ok();
 }
 
 #[tauri::command]
@@ -269,7 +310,8 @@ fn open_config_folder(app_handle: tauri::AppHandle) -> Result<(), String> {
     if !config_path.exists() {
         fs::create_dir_all(&config_path).ok();
     }
-    tauri_plugin_opener::open_path(config_path.to_string_lossy().to_string(), None::<&str>).map_err(|e| e.to_string())
+    tauri_plugin_opener::open_path(config_path.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -283,7 +325,8 @@ fn export_monitors(app_handle: tauri::AppHandle, path: String) -> Result<(), Str
 #[tauri::command]
 fn import_monitors(app_handle: tauri::AppHandle, path: String) -> Result<(), String> {
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let monitors: Vec<MonitorConfig> = serde_json::from_str(&content).map_err(|_| "Invalid config file".to_string())?;
+    let monitors: Vec<MonitorConfig> =
+        serde_json::from_str(&content).map_err(|_| "Invalid config file".to_string())?;
     save_monitors_to_file(&app_handle, &monitors);
     Ok(())
 }
@@ -295,24 +338,26 @@ fn get_windows_accent_color() -> Option<String> {
         use winreg::enums::*;
         use winreg::RegKey;
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        
+
         // Try DWM ColorizationColor (Usually ARGB)
         if let Ok(dwm) = hkcu.open_subkey("Software\\Microsoft\\Windows\\DWM") {
-             if let Ok(color) = dwm.get_value::<u32, _>("ColorizationColor") {
-                  println!("DWM Color: {:X}", color);
-                  return Some(format!("#{:06X}", color & 0x00FFFFFF));
-             }
+            if let Ok(color) = dwm.get_value::<u32, _>("ColorizationColor") {
+                println!("DWM Color: {:X}", color);
+                return Some(format!("#{:06X}", color & 0x00FFFFFF));
+            }
         }
-        
+
         // Fallback: Explorer AccentColorMenu (Usually ABGR)
-        if let Ok(accent) = hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Accent") {
-             if let Ok(color) = accent.get_value::<u32, _>("AccentColorMenu") {
-                  println!("Explorer Accent: {:X}", color);
-                  let r = color & 0xFF;
-                  let g = (color >> 8) & 0xFF;
-                  let b = (color >> 16) & 0xFF;
-                  return Some(format!("#{:02X}{:02X}{:02X}", r, g, b));
-             }
+        if let Ok(accent) =
+            hkcu.open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Accent")
+        {
+            if let Ok(color) = accent.get_value::<u32, _>("AccentColorMenu") {
+                println!("Explorer Accent: {:X}", color);
+                let r = color & 0xFF;
+                let g = (color >> 8) & 0xFF;
+                let b = (color >> 16) & 0xFF;
+                return Some(format!("#{:02X}{:02X}{:02X}", r, g, b));
+            }
         }
     }
     None
@@ -321,23 +366,29 @@ fn get_windows_accent_color() -> Option<String> {
 // Background Worker
 fn start_background_worker(app_handle: tauri::AppHandle) {
     loop {
+        let settings = load_settings(&app_handle);
         let monitors = load_monitors_from_file(&app_handle);
         for monitor in monitors {
             if monitor.enabled && monitor.notify {
                 if let Ok((size_bytes, _)) = scan_directory(&monitor.path, monitor.max_depth) {
                     let mb = size_bytes as f64 / (1024.0 * 1024.0);
                     if mb > monitor.threshold {
-                        app_handle.notification()
+                        app_handle
+                            .notification()
                             .builder()
                             .title(format!("{} is full!", monitor.name))
-                            .body(format!("Current size: {:.0} MB (Threshold: {:.0} MB)", mb, monitor.threshold))
+                            .body(format!(
+                                "Current size: {:.0} MB (Threshold: {:.0} MB)",
+                                mb, monitor.threshold
+                            ))
                             .show()
                             .ok();
                     }
                 }
             }
         }
-        std::thread::sleep(Duration::from_secs(3600)); // Check every hour
+        let interval_secs = (settings.check_interval_minutes as u64) * 60;
+        std::thread::sleep(Duration::from_secs(interval_secs));
     }
 }
 
@@ -350,7 +401,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
-            
+
             // System Tray Menu
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show Mist", true, None::<&str>)?;
@@ -360,7 +411,9 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app: &tauri::AppHandle, event| match event.id.as_ref() {
-                    "quit" => { app.exit(0); }
+                    "quit" => {
+                        app.exit(0);
+                    }
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -370,7 +423,12 @@ pub fn run() {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
-                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -388,7 +446,11 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             apply_mica(&window, None).ok();
             #[cfg(target_os = "macos")]
-            apply_blur(&window, window_vibrancy::NSVisualEffectMaterial::AppearanceBased).ok();
+            apply_blur(
+                &window,
+                window_vibrancy::NSVisualEffectMaterial::AppearanceBased,
+            )
+            .ok();
 
             Ok(())
         })

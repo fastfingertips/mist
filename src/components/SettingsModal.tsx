@@ -1,4 +1,4 @@
-import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch } from "@mantine/core";
+import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch, Select, NumberInput } from "@mantine/core";
 import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "@tabler/icons-react";
 import { invoke } from '@tauri-apps/api/core';
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
@@ -14,7 +14,11 @@ interface SettingsModalProps {
     readonly onOpenConfig: () => void;
 }
 
+
+
 export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onRestore, onOpenConfig }: Readonly<SettingsModalProps>) {
+    const presets = [15, 30, 60, 120, 240];
+    const isCustom = !presets.includes(settings.check_interval_minutes);
 
     const handleExport = async () => {
         try {
@@ -64,6 +68,47 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
                             checked={settings.minimize_to_tray}
                             onChange={(event) => onUpdateSettings({ ...settings, minimize_to_tray: event.currentTarget.checked })}
                         />
+                    </Group>
+                    <Group justify="space-between" align="center">
+                        <div>
+                            <Text size="sm">Background check interval</Text>
+                            <Text size="xs" c="dimmed">How often to check folder sizes for notifications.</Text>
+                        </div>
+                        {isCustom ? (
+                            <Group gap={4}>
+                                <NumberInput
+                                    size="xs"
+                                    w={70}
+                                    min={1}
+                                    max={1440}
+                                    suffix=" min"
+                                    value={settings.check_interval_minutes}
+                                    onChange={(value) => onUpdateSettings({ ...settings, check_interval_minutes: Number(value) || 60 })}
+                                />
+                                <Button size="xs" variant="subtle" onClick={() => onUpdateSettings({ ...settings, check_interval_minutes: 60 })}>×</Button>
+                            </Group>
+                        ) : (
+                            <Select
+                                size="xs"
+                                w={100}
+                                value={String(settings.check_interval_minutes)}
+                                onChange={(value) => {
+                                    if (value === 'custom') {
+                                        onUpdateSettings({ ...settings, check_interval_minutes: 45 });
+                                    } else {
+                                        onUpdateSettings({ ...settings, check_interval_minutes: Number(value) });
+                                    }
+                                }}
+                                data={[
+                                    { value: '15', label: '15 min' },
+                                    { value: '30', label: '30 min' },
+                                    { value: '60', label: '1 hour' },
+                                    { value: '120', label: '2 hours' },
+                                    { value: '240', label: '4 hours' },
+                                    { value: 'custom', label: 'Custom...' },
+                                ]}
+                            />
+                        )}
                     </Group>
                 </Stack>
 

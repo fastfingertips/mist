@@ -46,7 +46,7 @@ const checkIfAnyLoading = (monitors: MonitorStatus[]): boolean => {
 function App() {
   const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ minimize_to_tray: true });
+  const [settings, setSettings] = useState<AppSettings>({ minimize_to_tray: true, check_interval_minutes: 60 });
 
   // Sorting State
   const [sortBy, setSortBy] = useState<string | null>('name');

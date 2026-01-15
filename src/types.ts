@@ -17,4 +17,5 @@ export type MonitorStatus = MonitorConfig & {
 
 export type AppSettings = {
     minimize_to_tray: boolean;
+    check_interval_minutes: number;
 };
