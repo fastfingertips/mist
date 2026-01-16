@@ -5,7 +5,8 @@ export type MonitorConfig = {
     threshold: number;
     enabled: boolean;
     notify: boolean;
-    max_depth?: number; // undefined or 0 = unlimited
+    maxDepth?: number; // undefined or 0 = unlimited
+    lastScanAt?: number;
 };
 
 export type MonitorStatus = MonitorConfig & {
@@ -16,6 +17,6 @@ export type MonitorStatus = MonitorConfig & {
 };
 
 export type AppSettings = {
-    minimize_to_tray: boolean;
-    check_interval_minutes: number;
+    minimizeToTray: boolean;
+    checkIntervalMinutes: number;
 };

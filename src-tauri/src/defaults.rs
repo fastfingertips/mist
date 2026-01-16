@@ -10,6 +10,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_2".to_string(),
@@ -19,6 +20,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_3".to_string(),
@@ -28,6 +30,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_4".to_string(),
@@ -37,6 +40,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_5".to_string(),
@@ -46,6 +50,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_6".to_string(),
@@ -55,6 +60,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_7".to_string(),
@@ -64,6 +70,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_8".to_string(),
@@ -73,6 +80,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_9".to_string(),
@@ -82,6 +90,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_10".to_string(),
@@ -91,6 +100,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_11".to_string(),
@@ -100,6 +110,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_12".to_string(),
@@ -109,6 +120,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_13".to_string(),
@@ -118,6 +130,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_14".to_string(),
@@ -127,6 +140,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
         MonitorConfig {
             id: "def_15".to_string(),
@@ -136,6 +150,7 @@ pub fn get_default_monitors() -> Vec<MonitorConfig> {
             enabled: true,
             notify: false,
             max_depth: None,
+            last_scan_at: None,
         },
     ]
 }

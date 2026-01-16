@@ -19,13 +19,13 @@ export function EditMonitorModal({ opened, onClose, monitor, onSave }: Readonly<
     const [maxDepth, setMaxDepth] = useState<string | number>('');
     const [enabled, setEnabled] = useState(true);
 
-    // Monitor değiştiğinde formu doldur
+
     useEffect(() => {
         if (monitor) {
             setPath(monitor.path);
             setName(monitor.name);
             setThreshold(monitor.threshold);
-            setMaxDepth(monitor.max_depth || '');
+            setMaxDepth(monitor.maxDepth || '');
             setEnabled(monitor.enabled);
         }
     }, [monitor]);

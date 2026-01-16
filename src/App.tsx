@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { AppShell, Container, Box } from "@mantine/core";
+import { AppShell, Container } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import "./App.css";
 
-// Components & Types
+
 import { MonitorConfig, MonitorStatus, AppSettings } from "./types";
 import { TitleBar } from "./components/TitleBar";
 import { StatsGrid } from "./components/StatsGrid";
@@ -14,25 +14,27 @@ import { MonitorTable } from "./components/MonitorTable";
 import { AddMonitorModal } from "./components/AddMonitorModal";
 import { EditMonitorModal } from "./components/EditMonitorModal";
 import { SettingsModal } from "./components/SettingsModal";
-import { AboutFooter } from "./components/AboutFooter";
+import { StatusBar } from "./components/StatusBar";
 
 type ScanProgress = {
-  monitor_id: string;
-  size_bytes: number;
-  file_count: number;
+  monitorId: string;
+  sizeBytes: number;
+  fileCount: number;
   done: boolean;
   error: string | null;
+  lastScanAt?: number;
 };
 
 const updateMonitorWithProgress = (monitors: MonitorStatus[], progress: ScanProgress): MonitorStatus[] => {
   return monitors.map(m => {
-    if (m.id === progress.monitor_id) {
+    if (m.id === progress.monitorId) {
       return {
         ...m,
-        currentSizeBytes: progress.size_bytes,
-        fileCount: progress.file_count,
+        currentSizeBytes: progress.sizeBytes,
+        fileCount: progress.fileCount,
         error: progress.error,
-        loading: !progress.done
+        loading: !progress.done,
+        lastScanAt: progress.lastScanAt ?? m.lastScanAt
       };
     }
     return m;
@@ -46,35 +48,38 @@ const checkIfAnyLoading = (monitors: MonitorStatus[]): boolean => {
 function App() {
   const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({ minimize_to_tray: true, check_interval_minutes: 60 });
+  const [settings, setSettings] = useState<AppSettings>({ minimizeToTray: true, checkIntervalMinutes: 60 });
+  const [lastAutoCheck, setLastAutoCheck] = useState<number | null>(null);
 
-  // Sorting State
+
   const [sortBy, setSortBy] = useState<string | null>('name');
   const [reverseSortDirection, setReverseSortDirection] = useState(false);
 
-  // Modals
+
   const [addOpened, { open: openAdd, close: closeAdd }] = useDisclosure(false);
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
   const [settingsOpened, { open: openSettings, close: closeSettings }] = useDisclosure(false);
 
-  // Editing State
+
   const [editingMonitor, setEditingMonitor] = useState<MonitorStatus | null>(null);
 
 
-  // --- SCAN FUNCTIONS ---
 
-  // Streaming scan (real-time updates)
+
+
   const scanOneStreaming = useCallback((monitor: MonitorConfig) => {
+    setMonitors(prev => prev.map(m => m.id === monitor.id ? { ...m, loading: true, error: null } : m));
+    setScanning(true);
     invoke("check_monitor_path_streaming", {
       monitorId: monitor.id,
       path: monitor.path,
-      maxDepth: monitor.max_depth || null
+      maxDepth: monitor.maxDepth || null
     });
   }, []);
 
   const scanAllInternal = async (list: MonitorStatus[]) => {
     setScanning(true);
-    // Start all streaming scans
+
     for (const m of list) {
       if (m.enabled) {
         scanOneStreaming(m);
@@ -87,17 +92,16 @@ function App() {
   const fetchMonitors = async () => {
     try {
       const loaded: MonitorConfig[] = await invoke("get_monitors");
-      // Show UI immediately with loading state
-      const withStatus = loaded.map(m => ({ ...m, loading: true, currentSizeBytes: 0, fileCount: 0 }));
+
+      const withStatus = loaded.map(m => ({ ...m, loading: false, currentSizeBytes: 0, fileCount: 0 }));
       setMonitors(withStatus);
-      // Start streaming scans after a short delay to let UI render
-      setTimeout(() => scanAllInternal(withStatus), 100);
+      return withStatus;
     } catch (e) {
       console.error("Failed to load monitors", e);
     }
   };
 
-  // Listen to scan progress events
+
   useEffect(() => {
     const unlisten = listen<ScanProgress>("scan-progress", (event) => {
       const progress = event.payload;
@@ -109,18 +113,39 @@ function App() {
           // Check if all scans are done
           const anyLoading = checkIfAnyLoading(updated);
           if (!anyLoading) setScanning(false);
-        }
 
+          // Persist the state (especially lastScanAt)
+          invoke("save_monitors", { monitors: updated }).catch(console.error);
+        }
         return updated;
       });
     });
 
-    return () => { unlisten.then(fn => fn()); };
+    const unlistenAutoCheck = listen<number>("background-check-complete", (event) => {
+      setLastAutoCheck(event.payload);
+    });
+
+    return () => {
+      unlisten.then(fn => fn());
+      unlistenAutoCheck.then(fn => fn());
+    };
   }, []);
 
   useEffect(() => {
-    fetchMonitors();
-    invoke<AppSettings>("get_settings").then(setSettings);
+    const init = async () => {
+      const loadedMonitors = await fetchMonitors();
+      await invoke<AppSettings>("get_settings").then(setSettings);
+
+      // Show window after UI is ready
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().show();
+
+      // Start scans after window is visible (500ms delay)
+      if (loadedMonitors && loadedMonitors.length > 0) {
+        setTimeout(() => scanAllInternal(loadedMonitors), 500);
+      }
+    };
+    init();
   }, []);
 
   const handleUpdateSettings = (newSettings: AppSettings) => {
@@ -130,16 +155,13 @@ function App() {
 
   const saveToRust = async (newMonitors: MonitorConfig[]) => {
     try {
-      const cleanMonitors = newMonitors.map(({ id, name, path, threshold, enabled, notify, max_depth }) => ({
-        id, name, path, threshold, enabled, notify, max_depth
-      }));
-      await invoke("save_monitors", { monitors: cleanMonitors });
+      await invoke("save_monitors", { monitors: newMonitors });
     } catch (e) {
       console.error("Failed to save", e);
     }
   };
 
-  // --- HANDLERS ---
+
   const handleAdd = (name: string, path: string, threshold: number) => {
     const newMonitor: MonitorConfig = {
       id: Date.now().toString(),
@@ -164,7 +186,7 @@ function App() {
           name,
           path,
           threshold,
-          max_depth: maxDepth,
+          maxDepth,
           enabled,
           loading: enabled // Only set loading if enabled
         };
@@ -239,12 +261,12 @@ function App() {
     }
   };
 
-  // --- HELPERS ---
+
   const openFolder = (path: string) => invoke("open_monitor_path", { path }).catch(err => console.error(err));
 
   const handleOpenConfig = () => invoke("open_config_folder").catch(console.error);
 
-  // --- SORTING ---
+
   const stats = useMemo(() => {
     let totalSize = 0;
     let criticalCount = 0;
@@ -274,16 +296,18 @@ function App() {
         return reverseSortDirection ? usageA - usageB : usageB - usageA;
       }
 
-      if (sortBy === 'currentSizeBytes') {
+      if (sortBy === 'currentSizeBytes' || sortBy === 'lastScanAt') {
+        const field = sortBy as keyof MonitorStatus;
+        const valA = (a[field] as number || 0);
+        const valB = (b[field] as number || 0);
         return reverseSortDirection
-          ? (b.currentSizeBytes || 0) - (a.currentSizeBytes || 0)
-          : (a.currentSizeBytes || 0) - (b.currentSizeBytes || 0);
+          ? valB - valA
+          : valA - valB;
       }
 
-      // @ts-ignore
-      const valA = (a[sortBy] as string || "").toString().toLowerCase();
-      // @ts-ignore
-      const valB = (b[sortBy] as string || "").toString().toLowerCase();
+      const field = sortBy as keyof MonitorStatus;
+      const valA = (a[field] as string || "").toString().toLowerCase();
+      const valB = (b[field] as string || "").toString().toLowerCase();
 
       return reverseSortDirection
         ? valB.localeCompare(valA)
@@ -294,9 +318,9 @@ function App() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <TitleBar onOpenSettings={openSettings} minimizeToTray={settings.minimize_to_tray} />
+      <TitleBar onOpenSettings={openSettings} minimizeToTray={settings.minimizeToTray} />
 
-      {/* MODALS */}
+
       <AddMonitorModal
         opened={addOpened}
         onClose={closeAdd}
@@ -319,19 +343,19 @@ function App() {
         onOpenConfig={handleOpenConfig}
       />
 
-      {/* Main Content Area */}
-      <AppShell padding={0} withBorder={false} footer={{ height: 40 }} style={{ flex: 1, overflow: 'hidden' }}>
-        <AppShell.Main style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <Container size="xl" px="sm" pt="md" pb={40} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
 
-            <StatsGrid
-              stats={stats}
-              scanning={scanning}
-              onAdd={openAdd}
-              onScanAll={scanAll}
-            />
+      <AppShell padding={0} withBorder={false} footer={{ height: 26 }} style={{ flex: 1, overflow: 'hidden' }}>
+        <AppShell.Main style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <Container size="xl" p="md" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mantine-spacing-md)', flex: 1, minHeight: 0 }}>
 
-            <Box style={{ flex: '0 1 auto', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginBottom: 'var(--mantine-spacing-md)' }}>
+              <StatsGrid
+                stats={stats}
+                scanning={scanning}
+                onAdd={openAdd}
+                onScanAll={scanAll}
+              />
+
               <MonitorTable
                 data={sortedData}
                 sortBy={sortBy}
@@ -342,13 +366,18 @@ function App() {
                 removeMonitor={removeMonitor}
                 onToggleNotify={handleToggleNotify}
                 onToggleEnabled={handleToggleEnabled}
+                onScanOne={scanOneStreaming}
               />
-            </Box>
 
+            </div>
           </Container>
         </AppShell.Main>
         <AppShell.Footer withBorder={false}>
-          <AboutFooter />
+          <StatusBar
+            locationCount={monitors.length}
+            lastAutoCheck={lastAutoCheck}
+            isScanning={scanning}
+          />
         </AppShell.Footer>
       </AppShell>
     </div>

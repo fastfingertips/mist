@@ -18,7 +18,7 @@ interface SettingsModalProps {
 
 export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onRestore, onOpenConfig }: Readonly<SettingsModalProps>) {
     const presets = [15, 30, 60, 120, 240];
-    const isCustom = !presets.includes(settings.check_interval_minutes);
+    const isCustom = !presets.includes(settings.checkIntervalMinutes);
 
     const handleExport = async () => {
         try {
@@ -56,7 +56,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
     return (
         <Modal opened={opened} onClose={onClose} title={<Group gap={8}><IconSettings size={20} /><Text fw={600}>Settings</Text></Group>} centered>
             <Stack gap="lg">
-                {/* Behavior Section */}
+
                 <Stack gap={8}>
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">Behavior</Text>
                     <Group justify="space-between" align="center">
@@ -65,8 +65,8 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
                             <Text size="xs" c="dimmed">Keep Mist running in the background when the window is closed.</Text>
                         </div>
                         <Switch
-                            checked={settings.minimize_to_tray}
-                            onChange={(event) => onUpdateSettings({ ...settings, minimize_to_tray: event.currentTarget.checked })}
+                            checked={settings.minimizeToTray}
+                            onChange={(event) => onUpdateSettings({ ...settings, minimizeToTray: event.currentTarget.checked })}
                         />
                     </Group>
                     <Group justify="space-between" align="center">
@@ -82,21 +82,21 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
                                     min={1}
                                     max={1440}
                                     suffix=" min"
-                                    value={settings.check_interval_minutes}
-                                    onChange={(value) => onUpdateSettings({ ...settings, check_interval_minutes: Number(value) || 60 })}
+                                    value={settings.checkIntervalMinutes}
+                                    onChange={(value) => onUpdateSettings({ ...settings, checkIntervalMinutes: Number(value) || 60 })}
                                 />
-                                <Button size="xs" variant="subtle" onClick={() => onUpdateSettings({ ...settings, check_interval_minutes: 60 })}>×</Button>
+                                <Button size="xs" variant="subtle" onClick={() => onUpdateSettings({ ...settings, checkIntervalMinutes: 60 })}>x</Button>
                             </Group>
                         ) : (
                             <Select
                                 size="xs"
                                 w={100}
-                                value={String(settings.check_interval_minutes)}
+                                value={String(settings.checkIntervalMinutes)}
                                 onChange={(value) => {
                                     if (value === 'custom') {
-                                        onUpdateSettings({ ...settings, check_interval_minutes: 45 });
+                                        onUpdateSettings({ ...settings, checkIntervalMinutes: 45 });
                                     } else {
-                                        onUpdateSettings({ ...settings, check_interval_minutes: Number(value) });
+                                        onUpdateSettings({ ...settings, checkIntervalMinutes: Number(value) });
                                     }
                                 }}
                                 data={[
@@ -114,7 +114,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
 
                 <Divider />
 
-                {/* Data Management Section */}
+
                 <Stack gap={8}>
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">Configuration</Text>
                     <Group grow>
@@ -127,7 +127,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
 
                 {/* System Section */}
                 <Stack gap={8}>
-                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">System</Text>
+
 
                     <Group justify="space-between" align="center">
                         <Group gap={8}>
