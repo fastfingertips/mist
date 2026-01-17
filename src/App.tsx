@@ -127,7 +127,7 @@ function App() {
                 stats={stats}
                 scanning={scanning}
                 onAdd={openAdd}
-                onScanAll={actions.scanAll}
+                onScanAll={() => actions.scanAll(sortedData)}
               />
 
               <MonitorTable

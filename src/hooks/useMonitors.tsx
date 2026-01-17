@@ -1,39 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { MonitorConfig, MonitorStatus, AppSettings } from "../types";
-import { api, configToStatus } from "../api";
+import { MonitorConfig, MonitorStatus, AppSettings, ScanProgress } from "../types";
+import { api } from "../api";
+import { updateMonitorWithProgress, configToStatus, generateId, isDuplicatePath, calculateStats, mergeMonitors } from "../utils";
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconX, IconAlertTriangle } from "@tabler/icons-react";
-
-type ScanProgress = {
-    monitorId: string;
-    sizeBytes: number;
-    fileCount: number;
-    done: boolean;
-    error: string | null;
-    lastScanAt?: number;
-};
-
-const updateMonitorWithProgress = (monitors: MonitorStatus[], progress: ScanProgress): MonitorStatus[] => {
-    return monitors.map(m => {
-        if (m.id === progress.monitorId) {
-            return {
-                ...m,
-                currentSizeBytes: progress.sizeBytes,
-                fileCount: progress.fileCount,
-                error: progress.error,
-                loading: !progress.done,
-                lastScanAt: progress.lastScanAt ?? m.lastScanAt
-            };
-        }
-        return m;
-    });
-};
-
-const checkIfAnyLoading = (monitors: MonitorStatus[]): boolean => {
-    return monitors.some(m => m.loading && m.enabled);
-};
 
 export function useMonitors() {
     const [monitors, setMonitors] = useState<MonitorStatus[]>([]);
@@ -47,41 +19,66 @@ export function useMonitors() {
         api.checkMonitorPathStreaming(monitor.id, monitor.path, monitor.maxDepth);
     }, []);
 
-    const scanAllInternal = useCallback((list: MonitorStatus[]) => {
-        setScanning(true);
-        for (const m of list) {
-            if (m.enabled) {
-                scanOneStreaming(m);
-            }
-        }
-    }, [scanOneStreaming]);
+    // Sequential scan: returns a Promise that resolves when this monitor's scan completes
+    // Note: State updates are handled by the global scan-progress listener
+    const scanOneStreamingAsync = useCallback((monitor: MonitorConfig): Promise<void> => {
+        return new Promise((resolve) => {
+            let unlistenFn: (() => void) | null = null;
 
-    const scanAll = useCallback(() => scanAllInternal(monitors), [monitors, scanAllInternal]);
+            // Set up listener first
+            listen<ScanProgress>("scan-progress", (event) => {
+                if (event.payload.monitorId === monitor.id && event.payload.done) {
+                    if (unlistenFn) unlistenFn();
+                    resolve();
+                }
+            }).then(unlisten => {
+                unlistenFn = unlisten;
+                // Listener is ready, now start scan
+                api.checkMonitorPathStreaming(monitor.id, monitor.path, monitor.maxDepth);
+            });
+        });
+    }, []);
+
+    // Sequential scanning: one monitor at a time
+    const scanAllInternal = useCallback(async (list: MonitorStatus[]) => {
+        setScanning(true);
+        const enabledMonitors = list.filter(m => m.enabled);
+
+        for (const m of enabledMonitors) {
+            // Set loading state for current monitor
+            setMonitors(prev => prev.map(mon =>
+                mon.id === m.id ? { ...mon, loading: true, error: null } : mon
+            ));
+
+            await scanOneStreamingAsync(m);
+
+            // Immediately mark this monitor as done
+            setMonitors(prev => prev.map(mon =>
+                mon.id === m.id ? { ...mon, loading: false } : mon
+            ));
+        }
+
+
+
+        // Update last check time for manual scans too
+        setLastAutoCheck(Math.floor(Date.now() / 1000));
+
+        // Force all monitors to stop loading (safety net for delayed events)
+        setMonitors(prev => prev.map(m => ({ ...m, loading: false })));
+        setScanning(false);
+    }, [scanOneStreamingAsync]);
+
+    const scanAll = useCallback((customList?: MonitorStatus[]) => {
+        scanAllInternal(customList || monitors);
+    }, [monitors, scanAllInternal]);
+
+    const monitorsRef = useRef(monitors);
+    useEffect(() => { monitorsRef.current = monitors; }, [monitors]);
 
     const fetchMonitors = useCallback(async () => {
         try {
             const loaded = await api.getMonitors();
-            setMonitors(prev => {
-                if (prev.length === 0) return configToStatus(loaded);
-
-                return loaded.map(config => {
-                    const existing = prev.find(p => p.id === config.id);
-                    if (existing) {
-                        return {
-                            ...existing,
-                            ...config,
-                            // Ensure persistent fields from disk are used, 
-                            // but runtime fields from 'existing' are preserved
-                        };
-                    }
-                    return {
-                        ...config,
-                        loading: false,
-                        currentSizeBytes: 0,
-                        fileCount: 0
-                    };
-                });
-            });
+            setMonitors(prev => mergeMonitors(prev, loaded));
             return configToStatus(loaded);
         } catch (e) {
             console.error("Failed to load monitors", e);
@@ -98,17 +95,15 @@ export function useMonitors() {
 
 
 
+
+
     const handleUpdateSettings = useCallback((newSettings: AppSettings) => {
         setSettings(newSettings);
         api.saveSettings(newSettings);
     }, []);
 
     const handleAdd = useCallback((name: string, path: string, threshold: number) => {
-        // Double check for duplicate paths
-        const absolutePath = path.toLowerCase().trim();
-        const isDuplicate = monitors.some(m => m.path.toLowerCase().trim() === absolutePath);
-
-        if (isDuplicate) {
+        if (isDuplicatePath(monitors, path)) {
             notifications.show({
                 title: "Folder Already Exists",
                 message: `The folder "${name}" is already being monitored.`,
@@ -119,7 +114,7 @@ export function useMonitors() {
         }
 
         const newMonitor: MonitorConfig = {
-            id: Math.random().toString(36).substring(2, 9),
+            id: generateId(),
             name,
             path,
             threshold,
@@ -137,11 +132,7 @@ export function useMonitors() {
     }, [monitors, saveToRust, scanOneStreaming]);
 
     const handleEditSave = useCallback((id: string, name: string, path: string, threshold: number, maxDepth: number | undefined, enabled: boolean) => {
-        // Prevent changing to an existing path (different from current ID)
-        const absolutePath = path.toLowerCase().trim();
-        const isDuplicate = monitors.some(m => m.id !== id && m.path.toLowerCase().trim() === absolutePath);
-
-        if (isDuplicate) {
+        if (isDuplicatePath(monitors, path, id)) {
             notifications.show({
                 title: "Path Already Monitored",
                 message: "Another monitor item is already using this folder path.",
@@ -242,26 +233,24 @@ export function useMonitors() {
         const unlisten = listen<ScanProgress>("scan-progress", (event) => {
             const progress = event.payload;
 
-            setMonitors(prev => {
-                const updated = updateMonitorWithProgress(prev, progress);
+            setMonitors(prev => updateMonitorWithProgress(prev, progress));
 
-                if (progress.done) {
-                    const anyLoading = checkIfAnyLoading(updated);
-                    if (!anyLoading) setScanning(false);
+            if (progress.done) {
+                // Calculate updated state for side effects
+                const currentMonitors = monitorsRef.current;
+                const updated = updateMonitorWithProgress(currentMonitors, progress);
 
-                    if (progress.error) {
-                        notifications.show({
-                            title: "Scan Error",
-                            message: `Failed to scan ${updated.find(m => m.id === progress.monitorId)?.name || 'folder'}: ${progress.error}`,
-                            color: "red",
-                            icon: <IconX size={16} />
-                        });
-                    }
-
-                    api.saveMonitors(updated).catch(console.error);
+                if (progress.error) {
+                    notifications.show({
+                        title: "Scan Error",
+                        message: `Failed to scan ${updated.find(m => m.id === progress.monitorId)?.name || 'folder'}: ${progress.error}`,
+                        color: "red",
+                        icon: <IconX size={16} />
+                    });
                 }
-                return updated;
-            });
+
+                api.saveMonitors(updated).catch(console.error);
+            }
         });
 
         const unlistenAutoCheck = listen<number>("background-check-complete", (event) => {
@@ -314,7 +303,12 @@ export function useMonitors() {
         };
     }, [fetchMonitors, handleAdd]);
 
+    const initRef = useRef(false);
+
     useEffect(() => {
+        if (initRef.current) return;
+        initRef.current = true;
+
         const init = async () => {
             const loadedMonitors = await fetchMonitors();
             await api.getSettings().then(setSettings);
@@ -329,18 +323,7 @@ export function useMonitors() {
         init();
     }, [fetchMonitors, scanAllInternal]);
 
-    const stats = useMemo(() => {
-        let totalSize = 0;
-        let criticalCount = 0;
-        monitors.forEach(m => {
-            if (m.enabled) {
-                if (m.currentSizeBytes) totalSize += m.currentSizeBytes;
-                const mb = (m.currentSizeBytes || 0) / (1024 * 1024);
-                if (mb > m.threshold) criticalCount++;
-            }
-        });
-        return { totalSize, criticalCount };
-    }, [monitors]);
+    const stats = useMemo(() => calculateStats(monitors), [monitors]);
 
     return {
         monitors,

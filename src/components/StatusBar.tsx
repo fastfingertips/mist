@@ -14,9 +14,9 @@ import { AppColors } from "../theme";
 import { formatRelativeTime } from "../utils";
 
 interface StatusBarProps {
-    locationCount: number;
-    lastAutoCheck: number | null;
-    isScanning: boolean;
+    readonly locationCount: number;
+    readonly lastAutoCheck: number | null;
+    readonly isScanning: boolean;
 }
 
 export function StatusBar({ locationCount, lastAutoCheck, isScanning }: StatusBarProps) {

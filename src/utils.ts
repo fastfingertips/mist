@@ -1,4 +1,5 @@
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import type { MonitorConfig, MonitorStatus, ScanProgress } from './types';
 
 export const formatBytes = (bytes?: number): string => {
     if (bytes === undefined) return "---";
@@ -46,4 +47,96 @@ export const handleFolderBrowse = async (
     } catch (error) {
         console.error("Folder selection failed:", error);
     }
+};
+
+
+
+export const updateMonitorWithProgress = (
+    monitors: MonitorStatus[],
+    progress: ScanProgress
+): MonitorStatus[] => {
+    return monitors.map(m => {
+        if (m.id === progress.monitorId) {
+            return {
+                ...m,
+                currentSizeBytes: progress.sizeBytes,
+                fileCount: progress.fileCount,
+                error: progress.error,
+                // Only set loading to false when done, don't change it on progress updates
+                loading: progress.done ? false : m.loading,
+                lastScanAt: progress.lastScanAt ?? m.lastScanAt
+            };
+        }
+        return m;
+    });
+};
+
+// Generate a unique ID
+export const generateId = (): string => {
+    return Math.random().toString(36).substring(2, 9);
+};
+
+// Normalize path for comparison (lowercase, trimmed)
+export const normalizePath = (path: string): string => {
+    return path.toLowerCase().trim();
+};
+
+// Check if a path already exists in monitors (excluding a specific ID for edit scenarios)
+export const isDuplicatePath = (
+    monitors: { path: string; id: string }[],
+    path: string,
+    excludeId?: string
+): boolean => {
+    const normalized = normalizePath(path);
+    return monitors.some(m =>
+        (excludeId ? m.id !== excludeId : true) &&
+        normalizePath(m.path) === normalized
+    );
+};
+
+
+
+export const configToStatus = (monitors: MonitorConfig[]): MonitorStatus[] => {
+    return monitors.map(m => ({
+        ...m,
+        loading: false,
+        currentSizeBytes: 0,
+        fileCount: 0
+    }));
+};
+
+// Calculate stats from monitors
+export const calculateStats = (monitors: MonitorStatus[]): { totalSize: number; criticalCount: number } => {
+    let totalSize = 0;
+    let criticalCount = 0;
+    monitors.forEach(m => {
+        if (m.enabled) {
+            if (m.currentSizeBytes) totalSize += m.currentSizeBytes;
+            const mb = (m.currentSizeBytes || 0) / (1024 * 1024);
+            if (mb > m.threshold) criticalCount++;
+        }
+    });
+    return { totalSize, criticalCount };
+};
+
+// Merge loaded config with existing status
+export const mergeMonitors = (current: MonitorStatus[], loaded: MonitorConfig[]): MonitorStatus[] => {
+    if (current.length === 0) return configToStatus(loaded);
+
+    return loaded.map(config => {
+        const existing = current.find(p => p.id === config.id);
+        if (existing) {
+            return {
+                ...existing,
+                ...config
+                // Keep runtime state from 'existing'
+            };
+        }
+        return {
+            ...config,
+            loading: false,
+            currentSizeBytes: 0,
+            fileCount: 0
+        };
+    });
 };

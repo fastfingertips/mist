@@ -20,3 +20,12 @@ export type AppSettings = {
     minimizeToTray: boolean;
     checkIntervalMinutes: number;
 };
+
+export type ScanProgress = {
+    monitorId: string;
+    sizeBytes: number;
+    fileCount: number;
+    done: boolean;
+    error: string | null;
+    lastScanAt?: number;
+};

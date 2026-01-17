@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { MonitorConfig, AppSettings, MonitorStatus } from "./types";
+import { MonitorConfig, AppSettings } from "./types";
 
 /**
  * API module for centralized Tauri commands.
@@ -69,14 +69,4 @@ export const api = {
 
     getFolderName: (path: string): Promise<string> =>
         invoke("get_folder_name", { path }),
-};
-
-// Helper to convert config to status with default UI state
-export const configToStatus = (monitors: MonitorConfig[]): MonitorStatus[] => {
-    return monitors.map(m => ({
-        ...m,
-        loading: false,
-        currentSizeBytes: 0,
-        fileCount: 0
-    }));
 };
