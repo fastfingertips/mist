@@ -1,5 +1,6 @@
 import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch, Select, NumberInput } from "@mantine/core";
-import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "@tabler/icons-react";
+import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings, IconCheck, IconX } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { AppSettings } from "../types";
 import { AppColors } from "../theme";
@@ -28,11 +29,21 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
             });
             if (path) {
                 await api.exportMonitors(path);
-                alert("Configuration exported successfully!");
+                notifications.show({
+                    title: "Success",
+                    message: "Configuration exported successfully!",
+                    color: "green",
+                    icon: <IconCheck size={16} />
+                });
             }
         } catch (error) {
             console.error(error);
-            alert("Export failed: " + error);
+            notifications.show({
+                title: "Export Failed",
+                message: String(error),
+                color: "red",
+                icon: <IconX size={16} />
+            });
         }
     };
 
@@ -44,12 +55,22 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
             });
             if (path) {
                 await api.importMonitors(path);
-                alert("Configuration imported successfully! Reloading...");
-                location.reload();
+                notifications.show({
+                    title: "Success",
+                    message: "Configuration imported successfully! Reloading...",
+                    color: "green",
+                    icon: <IconCheck size={16} />
+                });
+                setTimeout(() => location.reload(), 1500);
             }
         } catch (error) {
             console.error(error);
-            alert("Import failed: " + error);
+            notifications.show({
+                title: "Import Failed",
+                message: String(error),
+                color: "red",
+                icon: <IconX size={16} />
+            });
         }
     };
 

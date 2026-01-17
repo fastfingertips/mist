@@ -55,6 +55,11 @@ export const api = {
 
     getWindowsAccentColor: (): Promise<string | null> =>
         invoke("get_windows_accent_color"),
+    /**
+     * Notifications
+     */
+    testNotification: (id: string, name: string, path: string, currentMb: number, threshold: number): Promise<void> =>
+        invoke("test_notification", { id, name, path, currentMb, threshold }),
 };
 
 // Helper to convert config to status with default UI state

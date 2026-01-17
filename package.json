@@ -1,7 +1,7 @@
 {
   "name": "mist",
   "private": true,
-  "version": "0.4.4",
+  "version": "0.4.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@mantine/core": "^8.3.12",
     "@mantine/hooks": "^8.3.12",
+    "@mantine/notifications": "^8.3.12",
     "@tabler/icons-react": "^3.36.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.5.0",

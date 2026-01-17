@@ -35,15 +35,26 @@ body {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+/* Scrollbar Thumb - Dark Mode (Default) */
+[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-thumb {
   background: var(--mantine-color-dark-5);
   border-radius: 6px;
   border: 2px solid var(--mantine-color-dark-8);
-  /* Padding effect */
 }
 
-::-webkit-scrollbar-thumb:hover {
+[data-mantine-color-scheme='dark'] ::-webkit-scrollbar-thumb:hover {
   background: var(--mantine-color-dark-4);
+}
+
+/* Scrollbar Thumb - Light Mode */
+[data-mantine-color-scheme='light'] ::-webkit-scrollbar-thumb {
+  background: var(--mantine-color-gray-4);
+  border-radius: 6px;
+  border: 2px solid var(--mantine-color-white);
+}
+
+[data-mantine-color-scheme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--mantine-color-gray-5);
 }
 
 ::-webkit-scrollbar-corner {

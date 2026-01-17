@@ -37,6 +37,7 @@ import {
 import { MonitorStatus } from "../types";
 import { AppColors, getStatusColor } from "../theme";
 import { formatBytes, formatRelativeTime, formatFileCount } from "../utils";
+import { api } from "../api";
 
 
 interface ThProps {
@@ -311,6 +312,14 @@ export function MonitorTable({
                                             <Menu.Target><ActionIcon variant="subtle" color={AppColors.neutral} size="sm"><IconDots size={14} /></ActionIcon></Menu.Target>
                                             <Menu.Dropdown>
                                                 <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => startEdit(m)}>Edit Settings</Menu.Item>
+                                                <Menu.Item
+                                                    leftSection={<IconBell size={14} />}
+                                                    onClick={() => api.testNotification(m.id, m.name, m.path, currentMB, m.threshold)}
+                                                    disabled={!m.enabled}
+                                                >
+                                                    Test Notification
+                                                </Menu.Item>
+                                                <Menu.Divider />
                                                 <Menu.Item color={AppColors.danger} leftSection={<IconTrash size={14} />} onClick={() => removeMonitor(m.id)}>Stop Tracking</Menu.Item>
                                             </Menu.Dropdown>
                                         </Menu>

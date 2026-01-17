@@ -3,6 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { MonitorConfig, MonitorStatus, AppSettings } from "../types";
 import { api, configToStatus } from "../api";
+import { notifications } from "@mantine/notifications";
+import { IconCheck, IconX } from "@tabler/icons-react";
 
 type ScanProgress = {
     monitorId: string;
@@ -59,9 +61,28 @@ export function useMonitors() {
     const fetchMonitors = useCallback(async () => {
         try {
             const loaded = await api.getMonitors();
-            const withStatus = configToStatus(loaded);
-            setMonitors(withStatus);
-            return withStatus;
+            setMonitors(prev => {
+                if (prev.length === 0) return configToStatus(loaded);
+
+                return loaded.map(config => {
+                    const existing = prev.find(p => p.id === config.id);
+                    if (existing) {
+                        return {
+                            ...existing,
+                            ...config,
+                            // Ensure persistent fields from disk are used, 
+                            // but runtime fields from 'existing' are preserved
+                        };
+                    }
+                    return {
+                        ...config,
+                        loading: false,
+                        currentSizeBytes: 0,
+                        fileCount: 0
+                    };
+                });
+            });
+            return configToStatus(loaded);
         } catch (e) {
             console.error("Failed to load monitors", e);
         }
@@ -85,6 +106,16 @@ export function useMonitors() {
                 if (progress.done) {
                     const anyLoading = checkIfAnyLoading(updated);
                     if (!anyLoading) setScanning(false);
+
+                    if (progress.error) {
+                        notifications.show({
+                            title: "Scan Error",
+                            message: `Failed to scan ${updated.find(m => m.id === progress.monitorId)?.name || 'folder'}: ${progress.error}`,
+                            color: "red",
+                            icon: <IconX size={16} />
+                        });
+                    }
+
                     api.saveMonitors(updated).catch(console.error);
                 }
                 return updated;
@@ -95,11 +126,16 @@ export function useMonitors() {
             setLastAutoCheck(event.payload);
         });
 
+        const unlistenUpdated = listen("monitors-updated", () => {
+            fetchMonitors();
+        });
+
         return () => {
             unlisten.then(fn => fn());
             unlistenAutoCheck.then(fn => fn());
+            unlistenUpdated.then(fn => fn());
         };
-    }, []);
+    }, [fetchMonitors]);
 
     useEffect(() => {
         const init = async () => {
@@ -208,8 +244,20 @@ export function useMonitors() {
             const withStatus = loaded.map(m => ({ ...m, loading: true }));
             setMonitors(withStatus as MonitorStatus[]);
             setTimeout(() => scanAllInternal(withStatus as MonitorStatus[]), 500);
+            notifications.show({
+                title: "Internal State Reset",
+                message: "Default monitors have been restored.",
+                color: "green",
+                icon: <IconCheck size={16} />
+            });
         } catch (e) {
             console.error(e);
+            notifications.show({
+                title: "Restore Failed",
+                message: String(e),
+                color: "red",
+                icon: <IconX size={16} />
+            });
         }
     }, [scanAllInternal]);
 

@@ -1,8 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { MantineProvider, createTheme } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
 import App from "./App";
 import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
 
 import { AppColors, DarkThemePalette, generatePalette } from "./theme";
 import { api } from "./api";
@@ -34,6 +36,7 @@ const renderApp = async () => {
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <MantineProvider theme={theme} defaultColorScheme="dark">
+        <Notifications position="top-right" zIndex={2000} />
         <App />
       </MantineProvider>
     </React.StrictMode>

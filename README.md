@@ -69,6 +69,12 @@ If you want to build from source or contribute:
 
    The installer will be located in `src-tauri/target/release/bundle/nsis/`.
 
+### Important: Windows Notifications in Dev Mode
+
+> **Note for Developers:** Windows desktop notifications will **not work** when running the app in development mode (`npm run tauri dev`) or when launching the `.exe` directly. This is because Windows requires the application to be properly registered in the Start Menu.
+>
+> To test notifications, you must **install the app using the installer** (`mist_x.x.x_x64-setup.exe`). This registers the app with Windows and enables notification functionality.
+
 ## Tech Stack
 
 | Component | Technology | Purpose & Example |

@@ -4,7 +4,6 @@ use std::time::Duration;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
-use tauri_plugin_notification::NotificationExt;
 use walkdir::WalkDir;
 use window_vibrancy::apply_mica;
 
@@ -207,6 +206,65 @@ fn get_windows_accent_color() -> Option<String> {
     utils::get_windows_accent_color()
 }
 
+#[tauri::command]
+fn test_notification(
+    app_handle: tauri::AppHandle,
+    id: String,
+    name: String,
+    path: String,
+    #[allow(non_snake_case)] currentMb: f64,
+    threshold: f64,
+) {
+    let expanded_path = utils::expand_env_vars(&path);
+    let path_for_callback = expanded_path.clone();
+    let app_clone = app_handle.clone();
+    let id_clone = id.clone();
+
+    std::thread::spawn(move || {
+        use winrt_toast::{Action, Text, Toast, ToastManager};
+
+        let manager = ToastManager::new("com.fastfingertips.mist");
+
+        let mut toast = Toast::new();
+        toast
+            .text1(&format!("{} exceeded limit!", name))
+            .text2(Text::new(&format!(
+                "Size: {:.1} GB / {:.1} GB threshold",
+                currentMb / 1024.0,
+                threshold / 1024.0
+            )));
+
+        toast.action(Action::new("Open Folder", "open", ""));
+        toast.action(Action::new("Mute Notifications", "mute", ""));
+
+        let _ = manager.show_with_callbacks(
+            &toast,
+            Some(Box::new(move |e| {
+                if let Ok(arg) = e {
+                    match arg.as_str() {
+                        "open" | "" => {
+                            let _ = std::process::Command::new("explorer")
+                                .arg(&path_for_callback)
+                                .spawn();
+                        }
+                        "mute" => {
+                            let mut monitors = storage::load_monitors_from_file(&app_clone);
+                            if let Some(m) = monitors.iter_mut().find(|m| m.id == id_clone) {
+                                m.notify = false;
+                                storage::save_monitors_to_file(&app_clone, &monitors);
+                                app_clone.emit("monitors-updated", ()).ok();
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            })),
+            None,
+            None,
+        );
+    });
+}
+
 fn start_background_worker(app_handle: tauri::AppHandle) {
     loop {
         let settings = storage::load_settings(&app_handle);
@@ -256,16 +314,61 @@ fn start_background_worker(app_handle: tauri::AppHandle) {
                         .ok();
 
                     if monitor.notify && mb > monitor.threshold {
-                        app_handle
-                            .notification()
-                            .builder()
-                            .title(format!("{} is full!", monitor.name))
-                            .body(format!(
-                                "Current size: {:.0} MB (Threshold: {:.0} MB)",
-                                mb, monitor.threshold
-                            ))
-                            .show()
-                            .ok();
+                        let expanded_path = utils::expand_env_vars(&monitor.path);
+                        let name = monitor.name.clone();
+                        let threshold = monitor.threshold;
+                        let path_clone = expanded_path.clone();
+                        let app_clone = app_handle.clone();
+                        let id_clone = monitor.id.clone();
+
+                        std::thread::spawn(move || {
+                            use winrt_toast::{Action, Text, Toast, ToastManager};
+
+                            let manager = ToastManager::new("com.fastfingertips.mist");
+
+                            let mut toast = Toast::new();
+                            toast
+                                .text1(&format!("{} exceeded limit!", name))
+                                .text2(Text::new(&format!(
+                                    "Size: {:.1} GB / {:.1} GB threshold",
+                                    mb / 1024.0,
+                                    threshold / 1024.0
+                                )));
+
+                            toast.action(Action::new("Open Folder", "open", ""));
+                            toast.action(Action::new("Mute Notifications", "mute", ""));
+
+                            let _ = manager.show_with_callbacks(
+                                &toast,
+                                Some(Box::new(move |e| {
+                                    if let Ok(arg) = e {
+                                        match arg.as_str() {
+                                            "open" | "" => {
+                                                let _ = std::process::Command::new("explorer")
+                                                    .arg(&path_clone)
+                                                    .spawn();
+                                            }
+                                            "mute" => {
+                                                let mut monitors =
+                                                    storage::load_monitors_from_file(&app_clone);
+                                                if let Some(m) =
+                                                    monitors.iter_mut().find(|m| m.id == id_clone)
+                                                {
+                                                    m.notify = false;
+                                                    storage::save_monitors_to_file(
+                                                        &app_clone, &monitors,
+                                                    );
+                                                    app_clone.emit("monitors-updated", ()).ok();
+                                                }
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                })),
+                                None,
+                                None,
+                            );
+                        });
                     }
                 }
             }
@@ -368,7 +471,8 @@ pub fn run() {
             import_monitors,
             get_settings,
             save_settings,
-            get_windows_accent_color
+            get_windows_accent_color,
+            test_notification
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
