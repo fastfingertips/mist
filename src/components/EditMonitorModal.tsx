@@ -1,9 +1,6 @@
-import { useState, useEffect } from "react";
-import { Modal, Stack, TextInput, ActionIcon, NumberInput, Button, Tooltip, Switch, Group, Text } from "@mantine/core";
-import { IconFolder } from "@tabler/icons-react";
+import { Modal } from "@mantine/core";
 import { MonitorStatus } from "../types";
-import { AppColors } from "../theme";
-import { handleFolderBrowse } from "../utils";
+import { MonitorForm } from "./MonitorForm";
 
 interface EditMonitorModalProps {
     opened: boolean;
@@ -13,68 +10,25 @@ interface EditMonitorModalProps {
 }
 
 export function EditMonitorModal({ opened, onClose, monitor, onSave }: Readonly<EditMonitorModalProps>) {
-    const [path, setPath] = useState('');
-    const [name, setName] = useState('');
-    const [threshold, setThreshold] = useState<string | number>(1024);
-    const [maxDepth, setMaxDepth] = useState<string | number>('');
-    const [enabled, setEnabled] = useState(true);
-
-
-    useEffect(() => {
-        if (monitor) {
-            setPath(monitor.path);
-            setName(monitor.name);
-            setThreshold(monitor.threshold);
-            setMaxDepth(monitor.maxDepth || '');
-            setEnabled(monitor.enabled);
-        }
-    }, [monitor]);
-
-    const handleSubmit = () => {
-        if (!monitor || !path) return;
-        const depthValue = maxDepth === '' || maxDepth === 0 ? undefined : Number(maxDepth);
-        onSave(monitor.id, name, path, Number(threshold), depthValue, enabled);
-        onClose();
-    };
-
     return (
         <Modal opened={opened} onClose={onClose} title="Edit Monitor" centered>
-            <Stack>
-                <TextInput
-                    label="Path"
-                    value={path}
-                    onChange={(e) => setPath(e.currentTarget.value)}
-                    rightSection={
-                        <ActionIcon variant="light" color={AppColors.primary} onClick={() => handleFolderBrowse(setPath, setName)} title="Browse Folder">
-                            <IconFolder size={16} />
-                        </ActionIcon>
+            <MonitorForm
+                initialValues={monitor ? {
+                    name: monitor.name,
+                    path: monitor.path,
+                    threshold: monitor.threshold,
+                    maxDepth: monitor.maxDepth,
+                    enabled: monitor.enabled
+                } : undefined}
+                submitLabel="Save Changes"
+                showExtendedFields
+                onSubmit={(values) => {
+                    if (monitor) {
+                        onSave(monitor.id, values.name, values.path, values.threshold, values.maxDepth, values.enabled);
                     }
-                />
-                <TextInput label="Name" value={name} onChange={(e) => setName(e.currentTarget.value)} />
-                <NumberInput label="Threshold (MB)" value={threshold} onChange={setThreshold} min={1} />
-                <Tooltip label="0 or empty = Unlimited depth (full scan)" position="top-start">
-                    <NumberInput
-                        label="Scan Depth"
-                        description="Limit how deep to scan. 0 = unlimited"
-                        value={maxDepth}
-                        onChange={setMaxDepth}
-                        min={0}
-                        max={100}
-                        placeholder="Unlimited"
-                    />
-                </Tooltip>
-                <Group justify="space-between" align="center" mt="xs">
-                    <div>
-                        <Text size="sm">Enabled</Text>
-                        <Text size="xs" c="dimmed">Include this folder in scans</Text>
-                    </div>
-                    <Switch
-                        checked={enabled}
-                        onChange={(e) => setEnabled(e.currentTarget.checked)}
-                    />
-                </Group>
-                <Button onClick={handleSubmit} mt="md" color={AppColors.primary}>Save Changes</Button>
-            </Stack>
+                    onClose();
+                }}
+            />
         </Modal>
     );
 }

@@ -1,9 +1,9 @@
 import { Modal, Button, Group, Text, Stack, Divider, ThemeIcon, Switch, Select, NumberInput } from "@mantine/core";
 import { IconDownload, IconUpload, IconReload, IconFolder, IconSettings } from "@tabler/icons-react";
-import { invoke } from '@tauri-apps/api/core';
 import { save, open, confirm } from '@tauri-apps/plugin-dialog';
 import { AppSettings } from "../types";
 import { AppColors } from "../theme";
+import { api } from "../api";
 
 interface SettingsModalProps {
     readonly opened: boolean;
@@ -27,7 +27,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
                 defaultPath: 'mist_config.json'
             });
             if (path) {
-                await invoke('export_monitors', { path });
+                await api.exportMonitors(path);
                 alert("Configuration exported successfully!");
             }
         } catch (error) {
@@ -43,7 +43,7 @@ export function SettingsModal({ opened, settings, onUpdateSettings, onClose, onR
                 filters: [{ name: 'JSON Config', extensions: ['json'] }]
             });
             if (path) {
-                await invoke('import_monitors', { path });
+                await api.importMonitors(path);
                 alert("Configuration imported successfully! Reloading...");
                 location.reload();
             }

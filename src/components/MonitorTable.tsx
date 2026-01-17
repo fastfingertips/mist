@@ -35,8 +35,8 @@ import {
     IconRefresh
 } from "@tabler/icons-react";
 import { MonitorStatus } from "../types";
-import { AppColors } from "../theme";
-import { formatBytes } from "../utils";
+import { AppColors, getStatusColor } from "../theme";
+import { formatBytes, formatRelativeTime, formatFileCount } from "../utils";
 
 
 interface ThProps {
@@ -101,22 +101,7 @@ interface MonitorTableProps {
     onScanOne: (monitor: MonitorStatus) => void;
 }
 
-function formatFileCount(count: number): string {
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-    return `${count}`;
-}
 
-function formatRelativeTime(timestamp?: number): string {
-    if (!timestamp) return "Never";
-    const now = Math.floor(Date.now() / 1000);
-    const diff = now - timestamp;
-
-    if (diff < 60) return "Just now";
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return new Date(timestamp * 1000).toLocaleDateString();
-}
 
 export function MonitorTable({
     data,
@@ -200,22 +185,18 @@ export function MonitorTable({
                             const isNotFound = m.error === "Path not found";
                             const currentMB = (m.currentSizeBytes || 0) / (1024 * 1024);
                             const percentage = Math.min(100, (currentMB / m.threshold) * 100);
-                            let color = AppColors.success;
+                            const color = getStatusColor(m.enabled, m.loading || false, m.error, currentMB, m.threshold);
+
                             let statusIcon = <IconCheck size={12} />;
                             if (!m.enabled) {
                                 statusIcon = <IconBan size={12} />;
-                                color = AppColors.neutral;
                             } else if (m.loading) {
                                 statusIcon = <Loader size={10} />;
-                                color = AppColors.neutral;
                             } else if (m.error) {
-                                color = AppColors.danger;
                                 statusIcon = <IconX size={12} />;
                             } else if (currentMB > m.threshold) {
-                                color = AppColors.danger;
                                 statusIcon = <IconAlertTriangle size={12} />;
                             } else if (currentMB > m.threshold * 0.8) {
-                                color = AppColors.warning;
                                 statusIcon = <IconAlertTriangle size={12} />;
                             }
 

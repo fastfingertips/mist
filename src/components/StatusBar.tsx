@@ -11,6 +11,7 @@ import {
 import { getVersion } from '@tauri-apps/api/app';
 import { useEffect, useState } from 'react';
 import { AppColors } from "../theme";
+import { formatRelativeTime } from "../utils";
 
 interface StatusBarProps {
     locationCount: number;
@@ -25,15 +26,7 @@ export function StatusBar({ locationCount, lastAutoCheck, isScanning }: StatusBa
         getVersion().then(setVersion).catch(console.error);
     }, []);
 
-    const formatRelativeTime = (timestamp: number | null): string => {
-        if (!timestamp) return "Never";
-        const now = Math.floor(Date.now() / 1000);
-        const diff = now - timestamp;
-        if (diff < 60) return "Just now";
-        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-        return new Date(timestamp * 1000).toLocaleDateString();
-    };
+
 
     return (
         <Group
