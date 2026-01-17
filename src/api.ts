@@ -60,6 +60,15 @@ export const api = {
      */
     testNotification: (id: string, name: string, path: string, currentMb: number, threshold: number): Promise<void> =>
         invoke("test_notification", { id, name, path, currentMb, threshold }),
+
+    /**
+     * Helpers for Drag and Drop
+     */
+    isDirectory: (path: string): Promise<boolean> =>
+        invoke("is_directory", { path }),
+
+    getFolderName: (path: string): Promise<string> =>
+        invoke("get_folder_name", { path }),
 };
 
 // Helper to convert config to status with default UI state

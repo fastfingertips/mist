@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
-import { AppShell, Container } from "@mantine/core";
+import { useState, useMemo, useEffect } from "react";
+import { AppShell, Container, Text, Title, ThemeIcon } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
+import { listen } from "@tauri-apps/api/event";
+import { IconFolderPlus } from "@tabler/icons-react";
 import "./App.css";
 
 import { MonitorStatus } from "./types";
@@ -24,8 +26,22 @@ function App() {
     actions
   } = useMonitors();
 
+  const [isDragging, setIsDragging] = useState(false);
   const [sortBy, setSortBy] = useState<string | null>('name');
   const [reverseSortDirection, setReverseSortDirection] = useState(false);
+
+  useEffect(() => {
+    const unlistenEnter = listen("tauri://drag-enter", () => setIsDragging(true));
+    const unlistenLeave = listen("tauri://drag-leave", () => setIsDragging(false));
+    const unlistenDrop = listen("tauri://drag-drop", () => setIsDragging(false));
+
+    return () => {
+      unlistenEnter.then(fn => fn());
+      unlistenLeave.then(fn => fn());
+      unlistenDrop.then(fn => fn());
+    };
+  }, []);
+
 
   const [addOpened, { open: openAdd, close: closeAdd }] = useDisclosure(false);
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
@@ -137,6 +153,15 @@ function App() {
           />
         </AppShell.Footer>
       </AppShell>
+      <div className={`drag-overlay ${isDragging ? 'active' : ''}`}>
+        <div className="drag-overlay-content">
+          <ThemeIcon size={80} radius="xl" variant="light" color="blue">
+            <IconFolderPlus size={40} />
+          </ThemeIcon>
+          <Title order={2} c="blue">Drop Folders Here</Title>
+          <Text size="lg" c="dimmed">Add new locations instantly to monitoring list</Text>
+        </div>
+      </div>
     </div>
   );
 }

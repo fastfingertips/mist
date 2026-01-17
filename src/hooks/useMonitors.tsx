@@ -4,7 +4,7 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 import { MonitorConfig, MonitorStatus, AppSettings } from "../types";
 import { api, configToStatus } from "../api";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconX } from "@tabler/icons-react";
+import { IconCheck, IconX, IconAlertTriangle } from "@tabler/icons-react";
 
 type ScanProgress = {
     monitorId: string;
@@ -96,61 +96,7 @@ export function useMonitors() {
         }
     }, []);
 
-    useEffect(() => {
-        const unlisten = listen<ScanProgress>("scan-progress", (event) => {
-            const progress = event.payload;
 
-            setMonitors(prev => {
-                const updated = updateMonitorWithProgress(prev, progress);
-
-                if (progress.done) {
-                    const anyLoading = checkIfAnyLoading(updated);
-                    if (!anyLoading) setScanning(false);
-
-                    if (progress.error) {
-                        notifications.show({
-                            title: "Scan Error",
-                            message: `Failed to scan ${updated.find(m => m.id === progress.monitorId)?.name || 'folder'}: ${progress.error}`,
-                            color: "red",
-                            icon: <IconX size={16} />
-                        });
-                    }
-
-                    api.saveMonitors(updated).catch(console.error);
-                }
-                return updated;
-            });
-        });
-
-        const unlistenAutoCheck = listen<number>("background-check-complete", (event) => {
-            setLastAutoCheck(event.payload);
-        });
-
-        const unlistenUpdated = listen("monitors-updated", () => {
-            fetchMonitors();
-        });
-
-        return () => {
-            unlisten.then(fn => fn());
-            unlistenAutoCheck.then(fn => fn());
-            unlistenUpdated.then(fn => fn());
-        };
-    }, [fetchMonitors]);
-
-    useEffect(() => {
-        const init = async () => {
-            const loadedMonitors = await fetchMonitors();
-            await api.getSettings().then(setSettings);
-
-            const { getCurrentWindow } = await import("@tauri-apps/api/window");
-            await getCurrentWindow().show();
-
-            if (loadedMonitors && loadedMonitors.length > 0) {
-                setTimeout(() => scanAllInternal(loadedMonitors), 500);
-            }
-        };
-        init();
-    }, [fetchMonitors, scanAllInternal]);
 
     const handleUpdateSettings = useCallback((newSettings: AppSettings) => {
         setSettings(newSettings);
@@ -158,8 +104,22 @@ export function useMonitors() {
     }, []);
 
     const handleAdd = useCallback((name: string, path: string, threshold: number) => {
+        // Double check for duplicate paths
+        const absolutePath = path.toLowerCase().trim();
+        const isDuplicate = monitors.some(m => m.path.toLowerCase().trim() === absolutePath);
+
+        if (isDuplicate) {
+            notifications.show({
+                title: "Folder Already Exists",
+                message: `The folder "${name}" is already being monitored.`,
+                color: "orange",
+                icon: <IconAlertTriangle size={16} />
+            });
+            return false;
+        }
+
         const newMonitor: MonitorConfig = {
-            id: Date.now().toString(),
+            id: Math.random().toString(36).substring(2, 9),
             name,
             path,
             threshold,
@@ -167,13 +127,30 @@ export function useMonitors() {
             notify: false
         };
 
-        const updated = [...monitors, { ...newMonitor, loading: true }];
-        setMonitors(updated);
-        saveToRust(updated);
+        setMonitors(prev => {
+            const updated = [...prev, { ...newMonitor, loading: true }];
+            saveToRust(updated);
+            return updated;
+        });
         scanOneStreaming(newMonitor);
+        return true;
     }, [monitors, saveToRust, scanOneStreaming]);
 
     const handleEditSave = useCallback((id: string, name: string, path: string, threshold: number, maxDepth: number | undefined, enabled: boolean) => {
+        // Prevent changing to an existing path (different from current ID)
+        const absolutePath = path.toLowerCase().trim();
+        const isDuplicate = monitors.some(m => m.id !== id && m.path.toLowerCase().trim() === absolutePath);
+
+        if (isDuplicate) {
+            notifications.show({
+                title: "Path Already Monitored",
+                message: "Another monitor item is already using this folder path.",
+                color: "orange",
+                icon: <IconAlertTriangle size={16} />
+            });
+            return;
+        }
+
         const updated = monitors.map(m => {
             if (m.id === id) {
                 return {
@@ -260,6 +237,97 @@ export function useMonitors() {
             });
         }
     }, [scanAllInternal]);
+
+    useEffect(() => {
+        const unlisten = listen<ScanProgress>("scan-progress", (event) => {
+            const progress = event.payload;
+
+            setMonitors(prev => {
+                const updated = updateMonitorWithProgress(prev, progress);
+
+                if (progress.done) {
+                    const anyLoading = checkIfAnyLoading(updated);
+                    if (!anyLoading) setScanning(false);
+
+                    if (progress.error) {
+                        notifications.show({
+                            title: "Scan Error",
+                            message: `Failed to scan ${updated.find(m => m.id === progress.monitorId)?.name || 'folder'}: ${progress.error}`,
+                            color: "red",
+                            icon: <IconX size={16} />
+                        });
+                    }
+
+                    api.saveMonitors(updated).catch(console.error);
+                }
+                return updated;
+            });
+        });
+
+        const unlistenAutoCheck = listen<number>("background-check-complete", (event) => {
+            setLastAutoCheck(event.payload);
+        });
+
+        const unlistenUpdated = listen("monitors-updated", () => {
+            fetchMonitors();
+        });
+
+        const unlistenDragDrop = listen<{ paths: string[] }>("tauri://drag-drop", async (event) => {
+            let addedCount = 0;
+            let duplicateCount = 0;
+
+            for (const path of event.payload.paths) {
+                const isDir = await api.isDirectory(path);
+                if (isDir) {
+                    const name = await api.getFolderName(path);
+                    const success = handleAdd(name, path, 1024); // Default 1GB threshold
+                    if (success) {
+                        addedCount++;
+                    } else {
+                        duplicateCount++;
+                    }
+                }
+            }
+
+            if (addedCount > 0) {
+                notifications.show({
+                    title: "Folders Added",
+                    message: `Successfully added ${addedCount} folder${addedCount > 1 ? 's' : ''}.`,
+                    color: "green",
+                    icon: <IconCheck size={16} />
+                });
+            } else if (duplicateCount === 0 && event.payload.paths.length > 0) {
+                notifications.show({
+                    title: "Invalid Drop",
+                    message: "Only folders can be added. Files are ignored.",
+                    color: "orange",
+                    icon: <IconAlertTriangle size={16} />
+                });
+            }
+        });
+
+        return () => {
+            unlisten.then(fn => fn());
+            unlistenAutoCheck.then(fn => fn());
+            unlistenUpdated.then(fn => fn());
+            unlistenDragDrop.then(fn => fn());
+        };
+    }, [fetchMonitors, handleAdd]);
+
+    useEffect(() => {
+        const init = async () => {
+            const loadedMonitors = await fetchMonitors();
+            await api.getSettings().then(setSettings);
+
+            const { getCurrentWindow } = await import("@tauri-apps/api/window");
+            await getCurrentWindow().show();
+
+            if (loadedMonitors && loadedMonitors.length > 0) {
+                setTimeout(() => scanAllInternal(loadedMonitors), 500);
+            }
+        };
+        init();
+    }, [fetchMonitors, scanAllInternal]);
 
     const stats = useMemo(() => {
         let totalSize = 0;

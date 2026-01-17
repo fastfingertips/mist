@@ -207,6 +207,22 @@ fn get_windows_accent_color() -> Option<String> {
 }
 
 #[tauri::command]
+fn is_directory(path: String) -> bool {
+    let expanded = utils::expand_env_vars(&path);
+    std::path::Path::new(&expanded).is_dir()
+}
+
+#[tauri::command]
+fn get_folder_name(path: String) -> String {
+    let expanded = utils::expand_env_vars(&path);
+    std::path::Path::new(&expanded)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("New Folder")
+        .to_string()
+}
+
+#[tauri::command]
 fn test_notification(
     app_handle: tauri::AppHandle,
     id: String,
@@ -472,7 +488,9 @@ pub fn run() {
             get_settings,
             save_settings,
             get_windows_accent_color,
-            test_notification
+            test_notification,
+            is_directory,
+            get_folder_name
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
